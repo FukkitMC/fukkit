@@ -12,7 +12,7 @@ import xyz.fukkit.ClassStripper
 import xyz.fukkit.EnvironmentStrippingData
 
 plugins {
-    id("crusty-loom") version "0.10.local"
+    id("crusty-loom") version "0.10.1"
     id("xyz.fukkit.crusty") version "2.2.2"
     id("uk.jamierocks2.propatcher") version "2.0.0" apply false
 }
@@ -23,12 +23,32 @@ version = "1.0.0-SNAPSHOT"
 val buildData = crusty.latestBuildData
 loom.setBuildData(buildData)
 
+repositories {
+    maven {
+        url = uri("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
+    }
+}
+
 dependencies {
     minecraft("net.minecraft", "minecraft", "1.17")
     mappings(fukkit.mappings())
 
     modImplementation("net.fabricmc", "fabric-loader", "0.11.6")
     // modImplementation("net.fabricmc.fabric-api", "fabric-api", "0.36.0+1.17")
+    implementation("org.spigotmc:spigot-api:1.17-R0.1-SNAPSHOT")
+    implementation("com.google.code.findbugs:jsr305:3.0.2")
+
+    implementation("jline:jline:2.12.1")
+    implementation("org.apache.logging.log4j:log4j-iostreams:2.14.1")
+    implementation("org.ow2.asm:asm:9.1")
+    implementation("com.googlecode.json-simple:json-simple:1.1.1")
+    implementation("org.xerial:sqlite-jdbc:3.34.0")
+    implementation("mysql:mysql-connector-java:5.1.49")
+    implementation("org.apache.maven:maven-resolver-provider:3.8.1")
+    implementation("org.apache.maven.resolver:maven-resolver-connector-basic:1.7.0")
+    implementation("org.apache.maven.resolver:maven-resolver-transport-http:1.7.0")
+    implementation("junit:junit:4.13.1")
+    implementation("org.hamcrest:hamcrest-library:1.3")
 
     compileOnly("com.google.code.findbugs", "jsr305", "3.0.2")
 }
@@ -40,7 +60,7 @@ sourceSets {
     }
 
     create("vanilla") {
-        compileClasspath += main.get().compileClasspath
+        compileClasspath += main.get().runtimeClasspath
     }
 }
 
