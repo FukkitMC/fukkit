@@ -24,8 +24,10 @@ public class FukkitMixinPlugin implements IMixinConfigPlugin {
                 Object delegate = getDelegate.invoke(knot);
                 Field mixinTransformer = delegate.getClass().getDeclaredField("mixinTransformer");
                 mixinTransformer.setAccessible(true);
-                FukkitMixinTransformerProxy proxy = UnsafeAllocator.create().newInstance(FukkitMixinTransformerProxy.class);
-                proxy.delegate = (FabricMixinTransformerProxy) mixinTransformer.get(delegate);
+                UnsafeAllocator allocator = UnsafeAllocator.create();
+                Class<?> cls = FukkitMixinTransformerProxy.class;
+                Object proxy = allocator.newInstance(cls);
+                ((FukkitMixinTransformerProxy)proxy).delegate = (FabricMixinTransformerProxy) mixinTransformer.get(delegate);
                 mixinTransformer.set(delegate, proxy);
             } catch (Throwable throwable) {
                 throw new RuntimeException(throwable);

@@ -1,5 +1,4 @@
 import net.fabricmc.loom.configuration.processors.JarProcessor
-import net.fabricmc.loom.task.GenerateSourcesTask
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.Opcodes
@@ -13,14 +12,16 @@ import xyz.fukkit.ClassStripper
 import xyz.fukkit.EnvironmentStrippingData
 
 plugins {
-    id("fabric-loom") version "0.9.16"
-    id("io.github.juuxel.loom-quiltflower") version "1.1.1"
-    id("xyz.fukkit.crusty") version "2.0.0"
+    id("crusty-loom") version "0.10.local"
+    id("xyz.fukkit.crusty") version "2.2.2"
     id("uk.jamierocks2.propatcher") version "2.0.0" apply false
 }
 
 group = "xyz.fukkit"
 version = "1.0.0-SNAPSHOT"
+
+val buildData = crusty.latestBuildData
+loom.setBuildData(buildData)
 
 dependencies {
     minecraft("net.minecraft", "minecraft", "1.17")
@@ -53,18 +54,12 @@ loom {
     addJarProcessor(SideStripperJarProcessor.SERVER)
 }
 
-val classesToPatch = file("patches/classlist.txt").readLines()
-    .map {
-        val s = it.trim()
-        val index = s.indexOf('#')
-
-        if (index == -1) {
-            s
-        } else {
-            s.substring(index)
-        }
-    }
+val explicitClasses = file("patches/classlist.txt").readLines()
+    .map { it.substringBefore('#').trim() }
     .filter { it.isNotEmpty() }
+val classesToPatch = HashSet<String>(explicitClasses)
+val root = file("patches/vanilla/")
+root.walk().filter { it.isFile }.asIterable().map { it.relativeTo(root) }.forEach { classesToPatch.add(it.toString().replace(".patch", ".java")) }
 
 tasks {
     withType<JavaCompile> {
@@ -96,20 +91,10 @@ tasks {
                 delete(rootDir)
             }
 
-            val decompile = project.tasks["genSourcesWithQuiltflower"] as GenerateSourcesTask
-            val decompiled = run {
-                val method =
-                    GenerateSourcesTask::class.java.getDeclaredMethod("getMappedJarFileWithSuffix", String::class.java)
-                method.isAccessible = true
-                method.invoke(decompile, "-sources.jar") as File
-            }
-
-            if (!decompiled.exists()) {
-                decompile.doTask()
-            }
+            val decompiled = crusty.getCrustySources(buildData) // todo avoid thing
 
             copy {
-                from(zipTree(decompiled))
+                from(decompiled)
                 into(rootDir)
 
                 classesToPatch.forEach(::include)
