@@ -3,5 +3,6 @@
 build/
 run/
 
-# Can't wait for someone to commit this anyway
+# Can't wait for someone to commit these anyway
 src/main/minecraft/
+src/vanilla/java/

@@ -6,6 +6,9 @@ import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.ClassNode
 import org.zeroturnaround.zip.ByteSource
 import org.zeroturnaround.zip.ZipUtil
+import uk.jamierocks.propatcher.task.ApplyPatchesTask
+import uk.jamierocks.propatcher.task.MakePatchesTask
+import uk.jamierocks.propatcher.task.ResetSourcesTask
 import xyz.fukkit.ClassStripper
 import xyz.fukkit.EnvironmentStrippingData
 
@@ -13,7 +16,7 @@ plugins {
     id("fabric-loom") version "0.9.16"
     id("io.github.juuxel.loom-quiltflower") version "1.1.1"
     id("xyz.fukkit.crusty") version "2.0.0"
-    id("uk.jamierocks2.propatcher") version "2.0.0"
+    id("uk.jamierocks2.propatcher") version "2.0.0" apply false
 }
 
 group = "xyz.fukkit"
@@ -34,6 +37,10 @@ sourceSets {
         java.srcDir("src/main/craftbukkit")
         java.srcDir("src/main/minecraft")
     }
+
+    create("vanilla") {
+        compileClasspath += main.get().compileClasspath
+    }
 }
 
 java {
@@ -46,27 +53,18 @@ loom {
     addJarProcessor(SideStripperJarProcessor.SERVER)
 }
 
-patches {
-    rootDir = file(".gradle/sources-1.17").apply {
-        mkdirs()
-    }
-    target = file("src/main/minecraft")
-    patches = file("patches")
-}
-
 val classesToPatch = file("patches/classlist.txt").readLines()
-    .map { it.trim() }
     .map {
-        val index = it.indexOf('#')
+        val s = it.trim()
+        val index = s.indexOf('#')
 
         if (index == -1) {
-            it
+            s
         } else {
-            it.substring(index)
+            s.substring(index)
         }
     }
     .filter { it.isNotEmpty() }
-
 
 tasks {
     withType<JavaCompile> {
@@ -86,7 +84,13 @@ tasks {
         }
     }
 
-    resetSources {
+    val resetVanillaSources by registering(ResetSourcesTask::class) {
+        rootDir = file(".gradle/sources-1.17")
+        target = file("src/vanilla/java")
+
+        rootDir.mkdirs()
+        target.mkdirs()
+
         doFirst {
             delete {
                 delete(rootDir)
@@ -111,6 +115,53 @@ tasks {
                 classesToPatch.forEach(::include)
             }
         }
+    }
+
+    val applyVanillaPatches by registering(ApplyPatchesTask::class) {
+        dependsOn(resetVanillaSources)
+        target = file("src/vanilla/java")
+        patches = file("patches/vanilla")
+
+        target.mkdirs()
+        patches.mkdirs()
+    }
+
+    val makeVanillaPatches by registering(MakePatchesTask::class) {
+        rootDir = file(".gradle/sources-1.17")
+        target = file("src/vanilla/java")
+        patches = file("patches/vanilla")
+
+        rootDir.mkdirs()
+        target.mkdirs()
+        patches.mkdirs()
+    }
+
+    val resetCraftbukkitSources by registering(ResetSourcesTask::class) {
+        dependsOn(applyVanillaPatches)
+        rootDir = file("src/vanilla/java")
+        target = file("src/main/minecraft")
+
+        rootDir.mkdirs()
+        target.mkdirs()
+    }
+
+    val applyCraftbukkitPatches by registering(ApplyPatchesTask::class) {
+        dependsOn(resetCraftbukkitSources)
+        target = file("src/main/minecraft")
+        patches = file("patches/minecraft")
+
+        target.mkdirs()
+        patches.mkdirs()
+    }
+
+    val makeCraftbukkitPatches by registering(MakePatchesTask::class) {
+        rootDir = file("src/vanilla/java")
+        target = file("src/main/minecraft")
+        patches = file("patches/minecraft")
+
+        rootDir.mkdirs()
+        target.mkdirs()
+        patches.mkdirs()
     }
 }
 
