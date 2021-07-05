@@ -1,4 +1,13 @@
+import net.fabricmc.loom.configuration.processors.JarProcessor
 import net.fabricmc.loom.task.GenerateSourcesTask
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.Opcodes
+import org.objectweb.asm.tree.ClassNode
+import org.zeroturnaround.zip.ByteSource
+import org.zeroturnaround.zip.ZipUtil
+import xyz.fukkit.ClassStripper
+import xyz.fukkit.EnvironmentStrippingData
 
 plugins {
     id("fabric-loom") version "0.9.16"
@@ -34,10 +43,13 @@ java {
 
 loom {
     accessWidener = file("src/main/resources/fukkit.aw")
+    addJarProcessor(SideStripperJarProcessor.SERVER)
 }
 
 patches {
-    rootDir = file(".gradle/sources-1.17")
+    rootDir = file(".gradle/sources-1.17").apply {
+        mkdirs()
+    }
     target = file("src/main/minecraft")
     patches = file("patches")
 }
@@ -99,5 +111,50 @@ tasks {
                 classesToPatch.forEach(::include)
             }
         }
+    }
+}
+
+enum class SideStripperJarProcessor : JarProcessor {
+    CLIENT, SERVER;
+
+    override fun setup() {}
+
+    override fun process(file: File?) {
+        val toRemove = mutableSetOf<String>()
+        val toTransform = mutableSetOf<ByteSource>()
+
+        ZipUtil.iterate(file) { `in`, zipEntry ->
+            val name: String = zipEntry.name
+            if (!zipEntry.isDirectory && name.endsWith(".class")) {
+                val original = ClassNode()
+                ClassReader(`in`).accept(original, 0)
+                val stripData =
+                    EnvironmentStrippingData(Opcodes.ASM8, this.name)
+                original.accept(stripData)
+                if (stripData.stripEntireClass()) {
+                    toRemove.add(name)
+                } else if (!stripData.isEmpty) {
+                    val classWriter = ClassWriter(0)
+                    original.accept(
+                        ClassStripper(
+                            Opcodes.ASM8,
+                            classWriter,
+                            stripData.stripInterfaces,
+                            stripData.stripFields,
+                            stripData.stripMethods
+                        )
+                    )
+                    toTransform.add(ByteSource(name, classWriter.toByteArray()))
+                }
+            }
+        }
+
+        ZipUtil.replaceEntries(file, toTransform.toTypedArray())
+        ZipUtil.removeEntries(file, toRemove.toTypedArray())
+        ZipUtil.addEntry(file, "side.txt", name.toByteArray())
+    }
+
+    override fun isInvalid(file: File?): Boolean {
+        return !ZipUtil.unpackEntry(file, "side.txt").contentEquals(name.toByteArray())
     }
 }
