@@ -4,18 +4,11 @@ plugins {
     id("fabric-loom") version "0.9.16"
     id("io.github.juuxel.loom-quiltflower") version "1.1.1"
     id("xyz.fukkit.crusty") version "2.0.0"
-    id("uk.jamierocks.propatcher") version "2.0.0"
+    id("uk.jamierocks2.propatcher") version "2.0.0"
 }
 
 group = "xyz.fukkit"
 version = "1.0.0-SNAPSHOT"
-
-repositories {
-    maven {
-        name = "JitPack"
-        url = uri("https://jitpack.io/")
-    }
-}
 
 dependencies {
     minecraft("net.minecraft", "minecraft", "1.17")

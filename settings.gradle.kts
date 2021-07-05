@@ -17,6 +17,16 @@ pluginManagement {
         }
 
         maven {
+            name = "Devan"
+            url = uri("https://storage.googleapis.com/devan-maven/")
+
+            content {
+                includeGroup("uk.jamierocks2")
+                includeGroup("uk.jamierocks2.propatcher")
+            }
+        }
+
+        maven {
             name = "Cotton"
             url = uri("https://server.bbkr.space/artifactory/libs-release/")
 
