@@ -23,7 +23,6 @@ dependencies {
 
     modImplementation("net.fabricmc", "fabric-loader", "0.11.6")
     // modImplementation("net.fabricmc.fabric-api", "fabric-api", "0.36.0+1.17")
-    modImplementation("com.github.Chocohead", "Fabric-ASM", "v2.3")
 
     compileOnly("com.google.code.findbugs", "jsr305", "3.0.2")
 }
