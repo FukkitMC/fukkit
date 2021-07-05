@@ -1,0 +1,10 @@
+--- a/net/minecraft/nbt/NBTCompressedStreamTools.java
++++ b/net/minecraft/nbt/NBTCompressedStreamTools.java
+@@ -82,6 +82,7 @@
+ 		DataOutputStream dataOutputStream = new DataOutputStream(new BufferedOutputStream(new GZIPOutputStream(outputStream)));
+ 
+ 		try {
++
+ 			a(nBTTagCompound, dataOutputStream);
+ 		} catch (Throwable var6) {
+ 			try {

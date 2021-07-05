@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/entity/EntityLiving.java
++++ b/net/minecraft/world/entity/EntityLiving.java
+@@ -3149,7 +3149,7 @@
+ 
+ 	@Nullable
+ 	public EnumDirection eW() {
+-		BlockPosition blockPosition = (BlockPosition)this.getBedPosition().orElse((Object)null);
++		BlockPosition blockPosition = (BlockPosition)this.getBedPosition().orElse(null);
+ 		return blockPosition != null ? BlockBed.a(this.level, blockPosition) : null;
+ 	}
+ 

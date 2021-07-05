@@ -1,0 +1,28 @@
+--- a/net/minecraft/server/level/PlayerChunkMap.java
++++ b/net/minecraft/server/level/PlayerChunkMap.java
+@@ -340,7 +340,7 @@
+ 			LOGGER.info("ThreadedAnvilChunkStorage ({}): All chunks are saved", this.storageFolder.getName());
+ 		} else {
+ 			this.visibleChunkMap.values().stream().filter(PlayerChunk::hasBeenLoaded).forEach(playerChunk -> {
+-				IChunkAccess iChunkAccess = (IChunkAccess)playerChunk.getChunkSave().getNow((Object)null);
++				IChunkAccess iChunkAccess = (IChunkAccess)playerChunk.getChunkSave().getNow(null);
+ 				if (iChunkAccess instanceof ProtoChunkExtension || iChunkAccess instanceof Chunk) {
+ 					this.saveChunk(iChunkAccess);
+ 					playerChunk.m();
+@@ -705,14 +705,14 @@
+ 			PlayerChunk playerChunk = (PlayerChunk)entry.getValue();
+ 			Optional<IChunkAccess> optional = Optional.ofNullable(playerChunk.f());
+ 			Optional<Chunk> optional2 = optional.flatMap(iChunkAccess -> iChunkAccess instanceof Chunk ? Optional.of((Chunk)iChunkAccess) : Optional.empty());
+-			cSVWriter.a(chunkCoordIntPair.x, chunkCoordIntPair.z, playerChunk.getTicketLevel(), optional.isPresent(), optional.map(IChunkAccess::getChunkStatus).orElse((Object)null), optional2.map(Chunk::getState).orElse((Object)null), a(playerChunk.c()), a(playerChunk.a()), a(playerChunk.b()), this.distanceManager.c(entry.getLongKey()), !this.isOutsideOfRange(chunkCoordIntPair), optional2.map(chunk -> chunk.getTileEntities().size()).orElse(0));
++			cSVWriter.a(chunkCoordIntPair.x, chunkCoordIntPair.z, playerChunk.getTicketLevel(), optional.isPresent(), optional.map(IChunkAccess::getChunkStatus).orElse(null), optional2.map(Chunk::getState).orElse(null), a(playerChunk.c()), a(playerChunk.a()), a(playerChunk.b()), this.distanceManager.c(entry.getLongKey()), !this.isOutsideOfRange(chunkCoordIntPair), optional2.map(chunk -> chunk.getTileEntities().size()).orElse(0));
+ 		}
+ 
+ 	}
+ 
+ 	private static String a(CompletableFuture<Either<Chunk, PlayerChunk.Failure>> completableFuture) {
+ 		try {
+-			Either<Chunk, PlayerChunk.Failure> either = (Either)completableFuture.getNow((Object)null);
++			Either<Chunk, PlayerChunk.Failure> either = (Either)completableFuture.getNow(null);
+ 			return either != null ? either.map(chunk -> "done", failure -> "unloaded") : "not completed";
+ 		} catch (CompletionException var2) {
+ 			return "failed " + var2.getCause().getMessage();

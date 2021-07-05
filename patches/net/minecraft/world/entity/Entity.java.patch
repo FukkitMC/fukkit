@@ -1,0 +1,20 @@
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -2289,7 +2289,7 @@
+ 					}
+ 
+ 					return BlockPortalShape.a(worldServer, rectangle, enumAxis, vec3D, this.a(this.getPose()), this.getMot(), this.getYRot(), this.getXRot());
+-				}).orElse((Object)null);
++				}).orElse(null);
+ 			}
+ 		} else {
+ 			BlockPosition blockPosition;
+@@ -2389,7 +2389,7 @@
+ 	@Nullable
+ 	@Override
+ 	public IChatBaseComponent getCustomName() {
+-		return (IChatBaseComponent)((Optional)this.entityData.get(DATA_CUSTOM_NAME)).orElse((Object)null);
++		return (IChatBaseComponent)((Optional)this.entityData.get(DATA_CUSTOM_NAME)).orElse(null);
+ 	}
+ 
+ 	@Override

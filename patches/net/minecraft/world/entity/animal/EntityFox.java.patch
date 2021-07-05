@@ -1,0 +1,13 @@
+--- a/net/minecraft/world/entity/animal/EntityFox.java
++++ b/net/minecraft/world/entity/animal/EntityFox.java
+@@ -333,8 +333,8 @@
+ 
+ 	List<UUID> fH() {
+ 		List<UUID> list = Lists.newArrayList();
+-		list.add((UUID)((Optional)this.entityData.get(DATA_TRUSTED_ID_0)).orElse((Object)null));
+-		list.add((UUID)((Optional)this.entityData.get(DATA_TRUSTED_ID_1)).orElse((Object)null));
++		list.add((UUID)((Optional)this.entityData.get(DATA_TRUSTED_ID_0)).orElse(null));
++		list.add((UUID)((Optional)this.entityData.get(DATA_TRUSTED_ID_1)).orElse(null));
+ 		return list;
+ 	}
+ 

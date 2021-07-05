@@ -1,0 +1,14 @@
+--- a/net/minecraft/world/entity/monster/piglin/PiglinAI.java
++++ b/net/minecraft/world/entity/monster/piglin/PiglinAI.java
+@@ -177,9 +177,9 @@
+ 
+ 	protected static void b(EntityPiglin entityPiglin) {
+ 		BehaviorController<EntityPiglin> behaviorController = entityPiglin.getBehaviorController();
+-		Activity activity = (Activity)behaviorController.f().orElse((Object)null);
++		Activity activity = (Activity)behaviorController.f().orElse(null);
+ 		behaviorController.a(ImmutableList.of(Activity.ADMIRE_ITEM, Activity.FIGHT, Activity.AVOID, Activity.CELEBRATE, Activity.RIDE, Activity.IDLE));
+-		Activity activity2 = (Activity)behaviorController.f().orElse((Object)null);
++		Activity activity2 = (Activity)behaviorController.f().orElse(null);
+ 		if (activity != activity2) {
+ 			d(entityPiglin).ifPresent(entityPiglin::a);
+ 		}

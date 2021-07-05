@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/entity/monster/piglin/EntityPiglinAbstract.java
++++ b/net/minecraft/world/entity/monster/piglin/EntityPiglinAbstract.java
+@@ -115,7 +115,7 @@
+ 	@Nullable
+ 	@Override
+ 	public EntityLiving getGoalTarget() {
+-		return (EntityLiving)this.brain.getMemory(MemoryModuleType.ATTACK_TARGET).orElse((Object)null);
++		return (EntityLiving)this.brain.getMemory(MemoryModuleType.ATTACK_TARGET).orElse(null);
+ 	}
+ 
+ 	protected boolean fx() {

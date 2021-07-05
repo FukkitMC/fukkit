@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/level/block/entity/TileEntityFurnace.java
++++ b/net/minecraft/world/level/block/entity/TileEntityFurnace.java
+@@ -242,7 +242,7 @@
+ 
+ 		ItemStack itemStack = tileEntityFurnace.items.get(1);
+ 		if (tileEntityFurnace.isBurning() || !itemStack.isEmpty() && !tileEntityFurnace.items.get(0).isEmpty()) {
+-			IRecipe<?> iRecipe = (IRecipe)world.getCraftingManager().craft(tileEntityFurnace.recipeType, tileEntityFurnace, world).orElse((Object)null);
++			IRecipe<?> iRecipe = (IRecipe)world.getCraftingManager().craft(tileEntityFurnace.recipeType, tileEntityFurnace, world).orElse(null);
+ 			int i = tileEntityFurnace.getMaxStackSize();
+ 			if (!tileEntityFurnace.isBurning() && canBurn(iRecipe, tileEntityFurnace.items, i)) {
+ 				tileEntityFurnace.litTime = tileEntityFurnace.fuelTime(itemStack);

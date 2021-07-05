@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/entity/boss/enderdragon/EntityEnderCrystal.java
++++ b/net/minecraft/world/entity/boss/enderdragon/EntityEnderCrystal.java
+@@ -128,7 +128,7 @@
+ 
+ 	@Nullable
+ 	public BlockPosition getBeamTarget() {
+-		return (BlockPosition)((Optional)this.getDataWatcher().get(DATA_BEAM_TARGET)).orElse((Object)null);
++		return (BlockPosition)((Optional)this.getDataWatcher().get(DATA_BEAM_TARGET)).orElse(null);
+ 	}
+ 
+ 	public void setShowingBottom(boolean bl) {

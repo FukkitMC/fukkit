@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/entity/EntityTypes.java
++++ b/net/minecraft/world/entity/EntityTypes.java
+@@ -497,7 +497,7 @@
+ 			}
+ 
+ 			return entity;
+-		}).orElse((Object)null);
++		}).orElse(null);
+ 	}
+ 
+ 	public static Stream<Entity> a(List<? extends NBTBase> list, World world) {

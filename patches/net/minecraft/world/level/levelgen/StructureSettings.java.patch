@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/level/levelgen/StructureSettings.java
++++ b/net/minecraft/world/level/levelgen/StructureSettings.java
+@@ -21,7 +21,7 @@
+ 	private final StructureSettingsStronghold stronghold;
+ 
+ 	public StructureSettings(Optional<StructureSettingsStronghold> optional, Map<StructureGenerator<?>, StructureSettingsFeature> map) {
+-		this.stronghold = (StructureSettingsStronghold)optional.orElse((Object)null);
++		this.stronghold = (StructureSettingsStronghold)optional.orElse(null);
+ 		this.structureConfig = map;
+ 	}
+ 

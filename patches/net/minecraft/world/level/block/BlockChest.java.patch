@@ -1,0 +1,20 @@
+--- a/net/minecraft/world/level/block/BlockChest.java
++++ b/net/minecraft/world/level/block/BlockChest.java
+@@ -263,7 +263,7 @@
+ 
+ 	@Nullable
+ 	public static IInventory getInventory(BlockChest blockChest, IBlockData iBlockData, World world, BlockPosition blockPosition, boolean bl) {
+-		return (IInventory)((Optional)blockChest.a(iBlockData, world, blockPosition, bl).apply(CHEST_COMBINER)).orElse((Object)null);
++		return (IInventory)((Optional)blockChest.a(iBlockData, world, blockPosition, bl).apply(CHEST_COMBINER)).orElse(null);
+ 	}
+ 
+ 	@Override
+@@ -281,7 +281,7 @@
+ 	@Nullable
+ 	@Override
+ 	public ITileInventory getInventory(IBlockData iBlockData, World world, BlockPosition blockPosition) {
+-		return (ITileInventory)((Optional)this.a(iBlockData, world, blockPosition, false).apply(MENU_PROVIDER_COMBINER)).orElse((Object)null);
++		return (ITileInventory)((Optional)this.a(iBlockData, world, blockPosition, false).apply(MENU_PROVIDER_COMBINER)).orElse(null);
+ 	}
+ 
+ 	public static DoubleBlockFinder.Combiner<TileEntityChest, Float2FloatFunction> a(LidBlockEntity lidBlockEntity) {

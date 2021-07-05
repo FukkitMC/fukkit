@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/level/block/MultifaceBlock.java
++++ b/net/minecraft/world/level/block/MultifaceBlock.java
+@@ -122,7 +122,7 @@
+ 		World world = blockActionContext.getWorld();
+ 		BlockPosition blockPosition = blockActionContext.getClickPosition();
+ 		IBlockData iBlockData = world.getType(blockPosition);
+-		return (IBlockData)Arrays.stream(blockActionContext.f()).map(enumDirection -> this.c(iBlockData, world, blockPosition, enumDirection)).filter(Objects::nonNull).findFirst().orElse((Object)null);
++		return (IBlockData)Arrays.stream(blockActionContext.f()).map(enumDirection -> this.c(iBlockData, world, blockPosition, enumDirection)).filter(Objects::nonNull).findFirst().orElse(null);
+ 	}
+ 
+ 	@Nullable

@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/entity/monster/EntityEnderman.java
++++ b/net/minecraft/world/entity/monster/EntityEnderman.java
+@@ -323,7 +323,7 @@
+ 
+ 	@Nullable
+ 	public IBlockData getCarried() {
+-		return (IBlockData)((Optional)this.entityData.get(DATA_CARRY_STATE)).orElse((Object)null);
++		return (IBlockData)((Optional)this.entityData.get(DATA_CARRY_STATE)).orElse(null);
+ 	}
+ 
+ 	@Override

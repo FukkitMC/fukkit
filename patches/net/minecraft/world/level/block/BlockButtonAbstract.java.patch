@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/level/block/BlockButtonAbstract.java
++++ b/net/minecraft/world/level/block/BlockButtonAbstract.java
+@@ -174,7 +174,7 @@
+ 			world.setTypeAndData(blockPosition, iBlockData.set(POWERED, Boolean.valueOf(bl)), 3);
+ 			this.f(iBlockData, world, blockPosition);
+ 			this.a((EntityHuman)null, world, blockPosition, bl);
+-			world.a((Entity)list.stream().findFirst().orElse((Object)null), bl ? GameEvent.BLOCK_PRESS : GameEvent.BLOCK_UNPRESS, blockPosition);
++			world.a((Entity)list.stream().findFirst().orElse(null), bl ? GameEvent.BLOCK_PRESS : GameEvent.BLOCK_UNPRESS, blockPosition);
+ 		}
+ 
+ 		if (bl) {

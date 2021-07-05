@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/entity/monster/piglin/EntityPiglin.java
++++ b/net/minecraft/world/entity/monster/piglin/EntityPiglin.java
+@@ -412,7 +412,7 @@
+ 
+ 	@Override
+ 	protected SoundEffect getSoundAmbient() {
+-		return this.level.isClientSide ? null : (SoundEffect)PiglinAI.d(this).orElse((Object)null);
++		return this.level.isClientSide ? null : (SoundEffect)PiglinAI.d(this).orElse(null);
+ 	}
+ 
+ 	@Override

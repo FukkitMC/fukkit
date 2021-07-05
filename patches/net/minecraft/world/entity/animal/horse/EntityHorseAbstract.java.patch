@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/entity/animal/horse/EntityHorseAbstract.java
++++ b/net/minecraft/world/entity/animal/horse/EntityHorseAbstract.java
+@@ -154,7 +154,7 @@
+ 
+ 	@Nullable
+ 	public UUID getOwnerUUID() {
+-		return (UUID)((Optional)this.entityData.get(DATA_ID_OWNER_UUID)).orElse((Object)null);
++		return (UUID)((Optional)this.entityData.get(DATA_ID_OWNER_UUID)).orElse(null);
+ 	}
+ 
+ 	public void setOwnerUUID(@Nullable UUID uUID) {

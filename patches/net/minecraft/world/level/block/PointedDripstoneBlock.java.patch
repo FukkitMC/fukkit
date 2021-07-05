@@ -1,0 +1,26 @@
+--- a/net/minecraft/world/level/block/PointedDripstoneBlock.java
++++ b/net/minecraft/world/level/block/PointedDripstoneBlock.java
+@@ -417,7 +417,7 @@
+ 		} else {
+ 			EnumDirection enumDirection = iBlockData.get(TIP_DIRECTION);
+ 			Predicate<IBlockData> predicate = iBlockDatax -> iBlockDatax.a(Blocks.POINTED_DRIPSTONE) && iBlockDatax.get(TIP_DIRECTION) == enumDirection;
+-			return (BlockPosition)a(generatorAccess, blockPosition, enumDirection.e(), predicate, iBlockDatax -> a(iBlockDatax, bl), i).orElse((Object)null);
++			return (BlockPosition)a(generatorAccess, blockPosition, enumDirection.e(), predicate, iBlockDatax -> a(iBlockDatax, bl), i).orElse(null);
+ 		}
+ 	}
+ 
+@@ -519,12 +519,12 @@
+ 	@Nullable
+ 	private static BlockPosition a(World world, BlockPosition blockPosition, FluidType fluidType) {
+ 		Predicate<IBlockData> predicate = iBlockData -> iBlockData.getBlock() instanceof AbstractCauldronBlock && ((AbstractCauldronBlock)iBlockData.getBlock()).a(fluidType);
+-		return (BlockPosition)a(world, blockPosition, EnumDirection.DOWN.e(), BlockBase.BlockData::isAir, predicate, 11).orElse((Object)null);
++		return (BlockPosition)a(world, blockPosition, EnumDirection.DOWN.e(), BlockBase.BlockData::isAir, predicate, 11).orElse(null);
+ 	}
+ 
+ 	@Nullable
+ 	public static BlockPosition a(World world, BlockPosition blockPosition) {
+-		return (BlockPosition)a(world, blockPosition, EnumDirection.UP.e(), BlockBase.BlockData::isAir, PointedDripstoneBlock::h, 11).orElse((Object)null);
++		return (BlockPosition)a(world, blockPosition, EnumDirection.UP.e(), BlockBase.BlockData::isAir, PointedDripstoneBlock::h, 11).orElse(null);
+ 	}
+ 
+ 	public static FluidType b(World world, BlockPosition blockPosition) {

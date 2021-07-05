@@ -1,0 +1,27 @@
+--- a/net/minecraft/server/level/ChunkProviderServer.java
++++ b/net/minecraft/server/level/ChunkProviderServer.java
+@@ -159,11 +159,11 @@
+ 			if (playerChunk == null) {
+ 				return null;
+ 			} else {
+-				Either<IChunkAccess, PlayerChunk.Failure> either = (Either)playerChunk.b(ChunkStatus.FULL).getNow((Object)null);
++				Either<IChunkAccess, PlayerChunk.Failure> either = (Either)playerChunk.b(ChunkStatus.FULL).getNow(null);
+ 				if (either == null) {
+ 					return null;
+ 				} else {
+-					IChunkAccess iChunkAccess2 = (IChunkAccess)either.left().orElse((Object)null);
++					IChunkAccess iChunkAccess2 = (IChunkAccess)either.left().orElse(null);
+ 					if (iChunkAccess2 != null) {
+ 						this.a(l, iChunkAccess2, ChunkStatus.FULL);
+ 						if (iChunkAccess2 instanceof Chunk) {
+@@ -179,8 +179,8 @@
+ 
+ 	private void clearCache() {
+ 		Arrays.fill(this.lastChunkPos, ChunkCoordIntPair.INVALID_CHUNK_POS);
+-		Arrays.fill(this.lastChunkStatus, (Object)null);
+-		Arrays.fill(this.lastChunk, (Object)null);
++		Arrays.fill(this.lastChunkStatus, null);
++		Arrays.fill(this.lastChunk, null);
+ 	}
+ 
+ 	public CompletableFuture<Either<IChunkAccess, PlayerChunk.Failure>> b(int i, int j, ChunkStatus chunkStatus, boolean bl) {

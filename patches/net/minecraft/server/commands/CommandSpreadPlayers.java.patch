@@ -1,0 +1,11 @@
+--- a/net/minecraft/server/commands/CommandSpreadPlayers.java
++++ b/net/minecraft/server/commands/CommandSpreadPlayers.java
+@@ -59,7 +59,7 @@
+ 			if (entity instanceof EntityHuman) {
+ 				set.add(entity.getScoreboardTeam());
+ 			} else {
+-				set.add((Object)null);
++				set.add(null);
+ 			}
+ 		}
+ 

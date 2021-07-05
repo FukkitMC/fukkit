@@ -1,0 +1,49 @@
+--- a/net/minecraft/server/level/PlayerChunk.java
++++ b/net/minecraft/server/level/PlayerChunk.java
+@@ -50,7 +50,7 @@
+ 	private volatile CompletableFuture<Either<Chunk, PlayerChunk.Failure>> fullChunkFuture = UNLOADED_LEVEL_CHUNK_FUTURE;
+ 	private volatile CompletableFuture<Either<Chunk, PlayerChunk.Failure>> tickingChunkFuture = UNLOADED_LEVEL_CHUNK_FUTURE;
+ 	private volatile CompletableFuture<Either<Chunk, PlayerChunk.Failure>> entityTickingChunkFuture = UNLOADED_LEVEL_CHUNK_FUTURE;
+-	private CompletableFuture<IChunkAccess> chunkToSave = CompletableFuture.completedFuture((Object)null);
++	private CompletableFuture<IChunkAccess> chunkToSave = CompletableFuture.completedFuture(null);
+ 	@Nullable
+ 	private final DebugBuffer<PlayerChunk.b> chunkToSaveHistory = null;
+ 	private int oldTicketLevel;
+@@ -66,7 +66,7 @@
+ 	private final PlayerChunk.e playerProvider;
+ 	private boolean wasAccessibleSinceLastSave;
+ 	private boolean resendLight;
+-	private CompletableFuture<Void> pendingFullStateConfirmation = CompletableFuture.completedFuture((Object)null);
++	private CompletableFuture<Void> pendingFullStateConfirmation = CompletableFuture.completedFuture(null);
+ 
+ 	public PlayerChunk(ChunkCoordIntPair chunkCoordIntPair, int i, LevelHeightAccessor levelHeightAccessor, LightEngine lightEngine, PlayerChunk.d arg, PlayerChunk.e arg2) {
+ 		this.pos = chunkCoordIntPair;
+@@ -105,8 +105,8 @@
+ 	@Nullable
+ 	public Chunk getChunk() {
+ 		CompletableFuture<Either<Chunk, PlayerChunk.Failure>> completableFuture = this.a();
+-		Either<Chunk, PlayerChunk.Failure> either = (Either)completableFuture.getNow((Object)null);
+-		return either == null ? null : (Chunk)either.left().orElse((Object)null);
++		Either<Chunk, PlayerChunk.Failure> either = (Either)completableFuture.getNow(null);
++		return either == null ? null : (Chunk)either.left().orElse(null);
+ 	}
+ 
+ 	@Nullable
+@@ -240,7 +240,7 @@
+ 		int i = chunkStatus.c();
+ 		CompletableFuture<Either<IChunkAccess, PlayerChunk.Failure>> completableFuture = (CompletableFuture)this.futures.get(i);
+ 		if (completableFuture != null) {
+-			Either<IChunkAccess, PlayerChunk.Failure> either = (Either)completableFuture.getNow((Object)null);
++			Either<IChunkAccess, PlayerChunk.Failure> either = (Either)completableFuture.getNow(null);
+ 			boolean bl = either != null && either.right().isPresent();
+ 			if (!bl) {
+ 				return completableFuture;
+@@ -294,7 +294,7 @@
+ 		CompletableFuture<Void> completableFuture2 = new CompletableFuture();
+ 		completableFuture2.thenRunAsync(() -> playerChunkMap.a(this.pos, state), executor);
+ 		this.pendingFullStateConfirmation = completableFuture2;
+-		completableFuture.thenAccept(either -> either.ifLeft(chunk -> completableFuture2.complete((Object)null)));
++		completableFuture.thenAccept(either -> either.ifLeft(chunk -> completableFuture2.complete(null)));
+ 	}
+ 
+ 	private void a(PlayerChunkMap playerChunkMap, PlayerChunk.State state) {
