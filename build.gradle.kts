@@ -148,7 +148,7 @@ tasks {
     val applyCraftbukkitPatches by registering(ApplyPatchesTask::class) {
         dependsOn(resetCraftbukkitSources)
         target = file("src/main/minecraft")
-        patches = file("patches/minecraft")
+        patches = file("patches/craftbukkit")
 
         target.mkdirs()
         patches.mkdirs()
@@ -157,7 +157,7 @@ tasks {
     val makeCraftbukkitPatches by registering(MakePatchesTask::class) {
         rootDir = file("src/vanilla/java")
         target = file("src/main/minecraft")
-        patches = file("patches/minecraft")
+        patches = file("patches/craftbukkit")
 
         rootDir.mkdirs()
         target.mkdirs()
