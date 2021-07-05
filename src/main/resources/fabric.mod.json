@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "fukkit",
+  "version": "${version}",
+  "environment": "server",
+  "accessWidener": "fukkit.aw",
+  "mixins": [
+    "mixins.fukkit.json"
+  ],
+  "entrypoints": {
+    "preLaunch": [],
+    "main": []
+  },
+  "name": "Fukkit",
+  "description": "A port of CraftBukkit for the Fabric mod loader",
+  "authors": [
+    "ramidzkh"
+  ],
+  "license": [
+    "LGPL-3.0-or-later"
+  ]
+}

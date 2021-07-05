@@ -1,6 +1,7 @@
 .gradle/
 .idea/
 build/
+run/
 
 # Can't wait for someone to commit this anyway
 src/main/minecraft/

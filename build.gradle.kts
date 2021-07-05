@@ -1,5 +1,4 @@
 import net.fabricmc.loom.task.GenerateSourcesTask
-import uk.jamierocks.propatcher.task.ResetSourcesTask
 
 plugins {
     id("fabric-loom") version "0.9.16"
@@ -11,9 +10,10 @@ plugins {
 group = "xyz.fukkit"
 version = "1.0.0-SNAPSHOT"
 
-sourceSets {
-    main {
-        java.srcDir("src/main/minecraft")
+repositories {
+    maven {
+        name = "JitPack"
+        url = uri("https://jitpack.io/")
     }
 }
 
@@ -22,9 +22,26 @@ dependencies {
     mappings(fukkit.mappings())
 
     modImplementation("net.fabricmc", "fabric-loader", "0.11.6")
-    modImplementation("net.fabricmc.fabric-api", "fabric-api", "0.36.0+1.17")
+    // modImplementation("net.fabricmc.fabric-api", "fabric-api", "0.36.0+1.17")
+    modImplementation("com.github.Chocohead", "Fabric-ASM", "v2.3")
 
     compileOnly("com.google.code.findbugs", "jsr305", "3.0.2")
+}
+
+sourceSets {
+    main {
+        java.srcDir("src/main/craftbukkit")
+        java.srcDir("src/main/minecraft")
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_16
+    targetCompatibility = JavaVersion.VERSION_16
+}
+
+loom {
+    accessWidener = file("src/main/resources/fukkit.aw")
 }
 
 patches {
@@ -33,14 +50,7 @@ patches {
     patches = file("patches")
 }
 
-val GenerateSourcesTask.output: File
-    get() {
-        val method = GenerateSourcesTask::class.java.getDeclaredMethod("getMappedJarFileWithSuffix", String::class.java)
-        method.isAccessible = true
-        return method.invoke(this, "-sources.jar") as File
-    }
-
-val classes = file("patches/classlist.txt").readLines()
+val classesToPatch = file("patches/classlist.txt").readLines()
     .map { it.trim() }
     .map {
         val index = it.indexOf('#')
@@ -53,24 +63,49 @@ val classes = file("patches/classlist.txt").readLines()
     }
     .filter { it.isNotEmpty() }
 
-(tasks["resetSources"] as ResetSourcesTask).apply {
-    doFirst {
-        delete {
-            delete(rootDir)
+
+tasks {
+    withType<JavaCompile> {
+        options.encoding = "UTF-8"
+        options.release.set(16)
+    }
+
+    withType<AbstractArchiveTask> {
+        from(rootProject.file("LICENSE"))
+    }
+
+    processResources {
+        inputs.property("version", project.version)
+
+        filesMatching("fabric.mod.json") {
+            expand("version" to project.version)
         }
+    }
 
-        val decompile = tasks["genSourcesWithQuiltflower"] as GenerateSourcesTask
-        val decompiled = decompile.output
+    resetSources {
+        doFirst {
+            delete {
+                delete(rootDir)
+            }
 
-        if (!decompiled.exists()) {
-            decompile.doTask()
-        }
+            val decompile = project.tasks["genSourcesWithQuiltflower"] as GenerateSourcesTask
+            val decompiled = run {
+                val method =
+                    GenerateSourcesTask::class.java.getDeclaredMethod("getMappedJarFileWithSuffix", String::class.java)
+                method.isAccessible = true
+                method.invoke(decompile, "-sources.jar") as File
+            }
 
-        copy {
-            from(zipTree(decompiled))
-            into(rootDir)
+            if (!decompiled.exists()) {
+                decompile.doTask()
+            }
 
-            classes.forEach(::include)
+            copy {
+                from(zipTree(decompiled))
+                into(rootDir)
+
+                classesToPatch.forEach(::include)
+            }
         }
     }
 }
