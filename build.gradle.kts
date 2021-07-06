@@ -1,6 +1,6 @@
 plugins {
-    id("crusty-loom") version "0.10.1"
-    id("xyz.fukkit.crusty") version "2.3.2"
+    id("crusty-loom") version "0.10.2"
+    id("xyz.fukkit.crusty") version "2.3.5"
     id("uk.jamierocks2.propatcher") version "2.0.0"
 }
 
