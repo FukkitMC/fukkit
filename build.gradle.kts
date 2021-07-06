@@ -19,6 +19,12 @@ repositories {
     }
 }
 
+sourceSets {
+    main {
+        java.srcDir("minecraft")
+    }
+}
+
 dependencies {
     minecraft("net.minecraft", "minecraft", "1.17")
     mappings(crusty.getCrustyMappings(buildData, "net.fabricmc:intermediary:1.17:v2"))
@@ -48,7 +54,7 @@ patches {
     rootDir = file(".gradle/sources-1.17").apply {
         mkdirs()
     }
-    target = file("src/main/java").apply {
+    target = file("src/main/minecraft").apply {
         mkdirs()
     }
     patches = file("patches").apply {
