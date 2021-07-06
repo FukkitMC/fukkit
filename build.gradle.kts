@@ -1,6 +1,6 @@
 plugins {
     id("crusty-loom") version "0.10.1"
-    id("xyz.fukkit.crusty") version "2.2.2"
+    id("xyz.fukkit.crusty") version "2.3.0"
     id("uk.jamierocks2.propatcher") version "2.0.0"
 }
 
@@ -14,11 +14,14 @@ repositories {
     maven {
         url = uri("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
     }
+    maven {
+        url = uri("https://maven.fabricmc.net/")
+    }
 }
 
 dependencies {
     minecraft("net.minecraft", "minecraft", "1.17")
-    mappings(fukkit.mappings())
+    mappings(crusty.getCrustyMappings(buildData, "net.fabricmc:intermediary:1.17:v2"))
 
     modImplementation("net.fabricmc", "fabric-loader", "0.11.6")
     // modImplementation("net.fabricmc.fabric-api", "fabric-api", "0.36.0+1.17")
