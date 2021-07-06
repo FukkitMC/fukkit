@@ -2,6 +2,7 @@ package xyz.fukkit.launch;
 
 import org.spongepowered.asm.mixin.transformer.FabricMixinTransformerProxy;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,8 +15,7 @@ public class FukkitMixinTransformerProxy extends FabricMixinTransformerProxy {
     @Override
     public byte[] transformClassBytes(String name, String transformedName, byte[] basicClass) {
         if (name.startsWith("net.minecraft")) {
-            Path path = Paths.get("../build/classes/java/main/" + name.replace('.', '/') + ".class");
-
+            Path path = Paths.get("").toAbsolutePath().getParent().resolve("build/classes/java/patched/" + name.replace('.', '/') + ".class");
             if (Files.exists(path)) {
                 try {
                     basicClass = Files.readAllBytes(path);

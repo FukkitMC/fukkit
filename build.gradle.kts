@@ -19,7 +19,16 @@ repositories {
     }
 }
 
+val priority = configurations.create("priority")
+val mainSourceSet = sourceSets.main.get()
+mainSourceSet.compileClasspath = priority + mainSourceSet.compileClasspath
+
+val patched = sourceSets.create("patched") {
+    java.srcDir(mainSourceSet.java.srcDirs)
+}
+
 dependencies {
+    priority(patched.output)
     minecraft("net.minecraft", "minecraft", "1.17")
     mappings(crusty.getCrustyMappings(buildData, "net.fabricmc:intermediary:1.17:v2"))
 
@@ -35,11 +44,12 @@ dependencies {
     testImplementation("org.hamcrest", "hamcrest-library", "1.3")
 }
 
-sourceSets {
-    main {
-        java.srcDir("src/main/minecraft")
-    }
-}
+//tasks.classes.get().dependsOn(tasks.getByName("patchedClasses"))
+
+val patchedCompileOnly = configurations.getByName(patched.compileOnlyConfigurationName)
+patchedCompileOnly.extendsFrom(configurations.getByName(mainSourceSet.runtimeElementsConfigurationName))
+patchedCompileOnly.extendsFrom(configurations.getByName(mainSourceSet.compileOnlyConfigurationName))
+patchedCompileOnly.extendsFrom(configurations.getByName(net.fabricmc.loom.util.Constants.Configurations.MINECRAFT_NAMED))
 
 java {
     sourceCompatibility = JavaVersion.VERSION_16
@@ -54,7 +64,7 @@ patches {
     rootDir = file(".gradle/sources-1.17").apply {
         mkdirs()
     }
-    target = file("src/main/minecraft").apply {
+    target = file("src/patched/java").apply {
         mkdirs()
     }
     patches = file("patches").apply {
@@ -96,7 +106,7 @@ tasks {
                 delete(rootDir)
             }
 
-            val decompiled = crusty.getCrustySources(buildData) // todo avoid thing
+            val decompiled = crusty.getCrustySources(buildData)
 
             copy {
                 from(decompiled)

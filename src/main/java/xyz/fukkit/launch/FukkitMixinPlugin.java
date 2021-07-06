@@ -14,11 +14,10 @@ import java.util.Set;
 
 public class FukkitMixinPlugin implements IMixinConfigPlugin {
 
-    @Override
-    public void onLoad(String mixinPackage) {
+    static {
         if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
             try {
-                Object knot = getClass().getClassLoader();
+                Object knot = FukkitMixinPlugin.class.getClassLoader();
                 Method getDelegate = knot.getClass().getDeclaredMethod("getDelegate");
                 getDelegate.setAccessible(true);
                 Object delegate = getDelegate.invoke(knot);
@@ -33,6 +32,11 @@ public class FukkitMixinPlugin implements IMixinConfigPlugin {
                 throw new RuntimeException(throwable);
             }
         }
+    }
+
+    @Override
+    public void onLoad(String mixinPackage) {
+
     }
 
     @Override
