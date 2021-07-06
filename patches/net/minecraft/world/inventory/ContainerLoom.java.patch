@@ -1,0 +1,89 @@
+--- a/net/minecraft/world/inventory/ContainerLoom.java
++++ b/net/minecraft/world/inventory/ContainerLoom.java
+@@ -16,8 +16,30 @@
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.entity.EnumBannerPatternType;
+ 
++// CraftBukkit start
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.inventory.CraftInventoryLoom;
++import org.bukkit.craftbukkit.inventory.CraftInventoryView;
++import org.bukkit.entity.Player;
++// CraftBukkit end
++
+ public class ContainerLoom extends Container {
+ 
++    // CraftBukkit start
++    private CraftInventoryView bukkitEntity = null;
++    private Player player;
++
++    @Override
++    public CraftInventoryView getBukkitView() {
++        if (bukkitEntity != null) {
++            return bukkitEntity;
++        }
++
++        CraftInventoryLoom inventory = new CraftInventoryLoom(this.inputContainer, this.outputContainer);
++        bukkitEntity = new CraftInventoryView(this.player, inventory, this);
++        return bukkitEntity;
++    }
++    // CraftBukkit end
+     private static final int INV_SLOT_START = 4;
+     private static final int INV_SLOT_END = 31;
+     private static final int USE_ROW_SLOT_START = 31;
+@@ -49,6 +71,13 @@
+                 ContainerLoom.this.a((IInventory) this);
+                 ContainerLoom.this.slotUpdateListener.run();
+             }
++
++            // CraftBukkit start
++            @Override
++            public Location getLocation() {
++                return containeraccess.getLocation();
++            }
++            // CraftBukkit end
+         };
+         this.outputContainer = new InventorySubcontainer(1) {
+             @Override
+@@ -56,6 +85,13 @@
+                 super.update();
+                 ContainerLoom.this.slotUpdateListener.run();
+             }
++
++            // CraftBukkit start
++            @Override
++            public Location getLocation() {
++                return containeraccess.getLocation();
++            }
++            // CraftBukkit end
+         };
+         this.access = containeraccess;
+         this.bannerSlot = this.a(new Slot(this.inputContainer, 0, 13, 26) {
+@@ -116,6 +152,7 @@
+         }
+ 
+         this.a(this.selectedBannerPatternIndex);
++        player = (Player) playerinventory.player.getBukkitEntity(); // CraftBukkit
+     }
+ 
+     public int i() {
+@@ -124,6 +161,7 @@
+ 
+     @Override
+     public boolean canUse(EntityHuman entityhuman) {
++        if (!this.checkReachable) return true; // CraftBukkit
+         return a(this.access, entityhuman, Blocks.LOOM);
+     }
+ 
+@@ -246,6 +284,11 @@
+ 
+                 if (nbttagcompound.hasKeyOfType("Patterns", 9)) {
+                     nbttaglist = nbttagcompound.getList("Patterns", 10);
++                    // CraftBukkit start
++                    while (nbttaglist.size() > 20) {
++                        nbttaglist.remove(20);
++                    }
++                    // CraftBukkit end
+                 } else {
+                     nbttaglist = new NBTTagList();
+                     nbttagcompound.set("Patterns", nbttaglist);

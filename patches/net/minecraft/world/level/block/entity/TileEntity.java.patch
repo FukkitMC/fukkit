@@ -1,0 +1,65 @@
+--- a/net/minecraft/world/level/block/entity/TileEntity.java
++++ b/net/minecraft/world/level/block/entity/TileEntity.java
+@@ -12,8 +12,18 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
++// CraftBukkit start
++import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
++import org.bukkit.craftbukkit.persistence.CraftPersistentDataTypeRegistry;
++import org.bukkit.inventory.InventoryHolder;
++// CraftBukkit end
++
+ public abstract class TileEntity {
+ 
++    // CraftBukkit start - data containers
++    private static final CraftPersistentDataTypeRegistry DATA_TYPE_REGISTRY = new CraftPersistentDataTypeRegistry();
++    public CraftPersistentDataContainer persistentDataContainer;
++    // CraftBukkit end
+     private static final Logger LOGGER = LogManager.getLogger();
+     private final TileEntityTypes<?> type;
+     @Nullable
+@@ -41,7 +51,16 @@
+         return this.level != null;
+     }
+ 
+-    public void load(NBTTagCompound nbttagcompound) {}
++    // CraftBukkit start - read container
++    public void load(NBTTagCompound nbttagcompound) {
++        this.persistentDataContainer = new CraftPersistentDataContainer(DATA_TYPE_REGISTRY);
++
++        net.minecraft.nbt.NBTBase persistentDataTag = nbttagcompound.get("PublicBukkitValues");
++        if (persistentDataTag instanceof NBTTagCompound) {
++            this.persistentDataContainer.putAll((NBTTagCompound) persistentDataTag);
++        }
++    }
++    // CraftBukkit end
+ 
+     public NBTTagCompound save(NBTTagCompound nbttagcompound) {
+         return this.c(nbttagcompound);
+@@ -57,6 +76,11 @@
+             nbttagcompound.setInt("x", this.worldPosition.getX());
+             nbttagcompound.setInt("y", this.worldPosition.getY());
+             nbttagcompound.setInt("z", this.worldPosition.getZ());
++            // CraftBukkit start - store container
++            if (this.persistentDataContainer != null && !this.persistentDataContainer.isEmpty()) {
++                nbttagcompound.set("PublicBukkitValues", this.persistentDataContainer.toTagCompound());
++            }
++            // CraftBukkit end
+             return nbttagcompound;
+         }
+     }
+@@ -164,4 +188,13 @@
+     public void b(IBlockData iblockdata) {
+         this.blockState = iblockdata;
+     }
++
++    // CraftBukkit start - add method
++    public InventoryHolder getOwner() {
++        if (level == null) return null;
++        org.bukkit.block.BlockState state = level.getWorld().getBlockAt(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ()).getState();
++        if (state instanceof InventoryHolder) return (InventoryHolder) state;
++        return null;
++    }
++    // CraftBukkit end
+ }

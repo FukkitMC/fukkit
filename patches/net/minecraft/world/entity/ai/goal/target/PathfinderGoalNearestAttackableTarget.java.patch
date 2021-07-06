@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/entity/ai/goal/target/PathfinderGoalNearestAttackableTarget.java
++++ b/net/minecraft/world/entity/ai/goal/target/PathfinderGoalNearestAttackableTarget.java
+@@ -61,7 +61,7 @@
+ 
+     @Override
+     public void c() {
+-        this.mob.setGoalTarget(this.target);
++        this.mob.setGoalTarget(this.target, target instanceof EntityPlayer ? org.bukkit.event.entity.EntityTargetEvent.TargetReason.CLOSEST_PLAYER : org.bukkit.event.entity.EntityTargetEvent.TargetReason.CLOSEST_ENTITY, true); // CraftBukkit - reason
+         super.c();
+     }
+ 

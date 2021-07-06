@@ -1,0 +1,42 @@
+--- a/net/minecraft/world/item/ItemCrossbow.java
++++ b/net/minecraft/world/item/ItemCrossbow.java
+@@ -114,6 +114,10 @@
+             if (itemstack1.isEmpty() && flag) {
+                 itemstack1 = new ItemStack(Items.ARROW);
+                 itemstack2 = itemstack1.cloneItemStack();
++                // CraftBukkit start - SPIGOT-4870, MC-150847
++            } else if (itemstack1.isEmpty()) {
++                return false;
++                // CraftBukkit end
+             }
+ 
+             if (!a(entityliving, itemstack, itemstack1, k > 0, flag)) {
+@@ -238,11 +242,27 @@
+                 vector3fa.a(quaternion);
+                 ((IProjectile) object).shoot((double) vector3fa.a(), (double) vector3fa.b(), (double) vector3fa.c(), f1, f2);
+             }
++            // CraftBukkit start
++            org.bukkit.event.entity.EntityShootBowEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callEntityShootBowEvent(entityliving, itemstack, itemstack1, (Entity) object, entityliving.getRaisedHand(), f, true);
++            if (event.isCancelled()) {
++                event.getProjectile().remove();
++                return;
++            }
++            // CraftBukkit end
+ 
+             itemstack.damage(flag1 ? 3 : 1, entityliving, (entityliving1) -> {
+                 entityliving1.broadcastItemBreak(enumhand);
+             });
+-            world.addEntity((Entity) object);
++            // CraftBukkit start
++            if (event.getProjectile() == ((Entity) object).getBukkitEntity()) {
++                if (!world.addEntity((Entity) object)) {
++                    if (entityliving instanceof EntityPlayer) {
++                        ((EntityPlayer) entityliving).getBukkitEntity().updateInventory();
++                    }
++                    return;
++                }
++            }
++            // CraftBukkit end
+             world.playSound((EntityHuman) null, entityliving.locX(), entityliving.locY(), entityliving.locZ(), SoundEffects.CROSSBOW_SHOOT, SoundCategory.PLAYERS, 1.0F, f);
+         }
+     }

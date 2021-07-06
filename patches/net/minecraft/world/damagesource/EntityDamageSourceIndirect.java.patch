@@ -1,0 +1,13 @@
+--- a/net/minecraft/world/damagesource/EntityDamageSourceIndirect.java
++++ b/net/minecraft/world/damagesource/EntityDamageSourceIndirect.java
+@@ -38,4 +38,10 @@
+ 
+         return !itemstack.isEmpty() && itemstack.hasName() ? new ChatMessage(s1, new Object[]{entityliving.getScoreboardDisplayName(), ichatbasecomponent, itemstack.G()}) : new ChatMessage(s, new Object[]{entityliving.getScoreboardDisplayName(), ichatbasecomponent});
+     }
++
++    // CraftBukkit start
++    public Entity getProximateDamageSource() {
++        return super.getEntity();
++    }
++    // CraftBukkit end
+ }

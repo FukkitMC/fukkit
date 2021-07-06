@@ -1,0 +1,14 @@
+--- a/net/minecraft/world/level/block/BlockCoral.java
++++ b/net/minecraft/world/level/block/BlockCoral.java
+@@ -26,6 +26,11 @@
+     @Override
+     public void tickAlways(IBlockData iblockdata, WorldServer worldserver, BlockPosition blockposition, Random random) {
+         if (!this.a((IBlockAccess) worldserver, blockposition)) {
++            // CraftBukkit start
++            if (org.bukkit.craftbukkit.event.CraftEventFactory.callBlockFadeEvent(worldserver, blockposition, this.deadBlock.getBlockData()).isCancelled()) {
++                return;
++            }
++            // CraftBukkit end
+             worldserver.setTypeAndData(blockposition, this.deadBlock.getBlockData(), 2);
+         }
+ 

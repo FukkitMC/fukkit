@@ -1,0 +1,38 @@
+--- a/net/minecraft/world/level/block/BlockCrops.java
++++ b/net/minecraft/world/level/block/BlockCrops.java
+@@ -21,6 +21,8 @@
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ import net.minecraft.world.phys.shapes.VoxelShapeCollision;
+ 
++import org.bukkit.craftbukkit.event.CraftEventFactory; // CraftBukkit
++
+ public class BlockCrops extends BlockPlant implements IBlockFragilePlantElement {
+ 
+     public static final int MAX_AGE = 7;
+@@ -76,7 +78,7 @@
+                 float f = a((Block) this, (IBlockAccess) worldserver, blockposition);
+ 
+                 if (random.nextInt((int) (25.0F / f) + 1) == 0) {
+-                    worldserver.setTypeAndData(blockposition, this.setAge(i + 1), 2);
++                    CraftEventFactory.handleBlockGrowEvent(worldserver, blockposition, this.setAge(i + 1), 2); // CraftBukkit
+                 }
+             }
+         }
+@@ -91,7 +93,7 @@
+             i = j;
+         }
+ 
+-        world.setTypeAndData(blockposition, this.setAge(i), 2);
++        CraftEventFactory.handleBlockGrowEvent(world, blockposition, this.setAge(i), 2); // CraftBukkit
+     }
+ 
+     protected int a(World world) {
+@@ -149,7 +151,7 @@
+ 
+     @Override
+     public void a(IBlockData iblockdata, World world, BlockPosition blockposition, Entity entity) {
+-        if (entity instanceof EntityRavager && world.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) {
++        if (entity instanceof EntityRavager && !CraftEventFactory.callEntityChangeBlockEvent(entity, blockposition, Blocks.AIR.getBlockData(), !world.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)).isCancelled()) { // CraftBukkit
+             world.a(blockposition, true, entity);
+         }
+ 

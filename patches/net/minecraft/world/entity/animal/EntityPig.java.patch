@@ -1,0 +1,28 @@
+--- a/net/minecraft/world/entity/animal/EntityPig.java
++++ b/net/minecraft/world/entity/animal/EntityPig.java
+@@ -50,6 +50,10 @@
+ import net.minecraft.world.phys.AxisAlignedBB;
+ import net.minecraft.world.phys.Vec3D;
+ 
++// CraftBukkit start
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++// CraftBukkit end
++
+ public class EntityPig extends EntityAnimal implements ISteerable, ISaddleable {
+ 
+     private static final DataWatcherObject<Boolean> DATA_SADDLE_ID = DataWatcher.a(EntityPig.class, DataWatcherRegistry.BOOLEAN);
+@@ -251,7 +255,13 @@
+             }
+ 
+             entitypigzombie.setPersistent();
+-            worldserver.addEntity(entitypigzombie);
++            // CraftBukkit start
++            if (CraftEventFactory.callPigZapEvent(this, entitylightning, entitypigzombie).isCancelled()) {
++                return;
++            }
++            // CraftBukkit - added a reason for spawning this creature
++            worldserver.addEntity(entitypigzombie, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.LIGHTNING);
++            // CraftBukkit end
+             this.die();
+         } else {
+             super.onLightningStrike(worldserver, entitylightning);

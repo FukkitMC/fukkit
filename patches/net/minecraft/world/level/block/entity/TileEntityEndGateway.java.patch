@@ -1,0 +1,63 @@
+--- a/net/minecraft/world/level/block/entity/TileEntityEndGateway.java
++++ b/net/minecraft/world/level/block/entity/TileEntityEndGateway.java
+@@ -32,6 +32,14 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
++// CraftBukkit start
++import net.minecraft.world.level.dimension.DimensionManager;
++import org.bukkit.Bukkit;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.event.player.PlayerTeleportEvent;
++// CraftBukkit end
++
+ public class TileEntityEndGateway extends TileEntityEnderPortal {
+ 
+     private static final Logger LOGGER = LogManager.getLogger();
+@@ -170,7 +178,7 @@
+             tileentityendgateway.teleportCooldown = 100;
+             BlockPosition blockposition1;
+ 
+-            if (tileentityendgateway.exitPortal == null && world.getDimensionKey() == World.END) {
++            if (tileentityendgateway.exitPortal == null && world.getTypeKey() == DimensionManager.END_LOCATION) { // CraftBukkit - work in alternate worlds
+                 blockposition1 = a(worldserver, blockposition);
+                 blockposition1 = blockposition1.up(10);
+                 TileEntityEndGateway.LOGGER.debug("Creating portal at {}", blockposition1);
+@@ -199,6 +207,27 @@
+                     entity1 = entity.getRootVehicle();
+                 }
+ 
++                // CraftBukkit start - Fire PlayerTeleportEvent
++                if (entity1 instanceof EntityPlayer) {
++                    org.bukkit.craftbukkit.entity.CraftPlayer player = (CraftPlayer) entity1.getBukkitEntity();
++                    org.bukkit.Location location = new Location(world.getWorld(), (double) blockposition1.getX() + 0.5D, (double) blockposition1.getY() + 0.5D, (double) blockposition1.getZ() + 0.5D);
++                    location.setPitch(player.getLocation().getPitch());
++                    location.setYaw(player.getLocation().getYaw());
++
++                    PlayerTeleportEvent teleEvent = new PlayerTeleportEvent(player, player.getLocation(), location, PlayerTeleportEvent.TeleportCause.END_GATEWAY);
++                    Bukkit.getPluginManager().callEvent(teleEvent);
++                    if (teleEvent.isCancelled()) {
++                        return;
++                    }
++
++                    entity1.resetPortalCooldown();
++                    ((EntityPlayer) entity1).connection.teleport(teleEvent.getTo());
++                    c(world, blockposition, iblockdata, tileentityendgateway); // CraftBukkit - call at end of method
++                    return;
++
++                }
++                // CraftBukkit end
++
+                 entity1.resetPortalCooldown();
+                 entity1.enderTeleportAndLoad((double) blockposition1.getX() + 0.5D, (double) blockposition1.getY(), (double) blockposition1.getZ() + 0.5D);
+             }
+@@ -310,7 +339,7 @@
+     }
+ 
+     private static void a(WorldServer worldserver, BlockPosition blockposition, WorldGenEndGatewayConfiguration worldgenendgatewayconfiguration) {
+-        WorldGenerator.END_GATEWAY.b((WorldGenFeatureConfiguration) worldgenendgatewayconfiguration).a(worldserver, worldserver.getChunkProvider().getChunkGenerator(), new Random(), blockposition);
++        WorldGenerator.END_GATEWAY.b(worldgenendgatewayconfiguration).a(worldserver, worldserver.getChunkProvider().getChunkGenerator(), new Random(), blockposition); // CraftBukkit - decompile error
+     }
+ 
+     @Override

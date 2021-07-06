@@ -1,0 +1,19 @@
+--- a/net/minecraft/world/entity/ai/goal/target/PathfinderGoalHurtByTarget.java
++++ b/net/minecraft/world/entity/ai/goal/target/PathfinderGoalHurtByTarget.java
+@@ -64,7 +64,7 @@
+ 
+     @Override
+     public void c() {
+-        this.mob.setGoalTarget(this.mob.getLastDamager());
++        this.mob.setGoalTarget(this.mob.getLastDamager(), org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_ENTITY, true); // CraftBukkit - reason
+         this.targetMob = this.mob.getGoalTarget();
+         this.timestamp = this.mob.dH();
+         this.unseenMemoryTicks = 300;
+@@ -111,6 +111,6 @@
+     }
+ 
+     protected void a(EntityInsentient entityinsentient, EntityLiving entityliving) {
+-        entityinsentient.setGoalTarget(entityliving);
++        entityinsentient.setGoalTarget(entityliving, org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_NEARBY_ENTITY, true); // CraftBukkit - reason
+     }
+ }

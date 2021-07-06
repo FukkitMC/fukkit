@@ -1,0 +1,51 @@
+--- a/net/minecraft/world/entity/animal/EntityMushroomCow.java
++++ b/net/minecraft/world/entity/animal/EntityMushroomCow.java
+@@ -42,6 +42,11 @@
+ import net.minecraft.world.level.gameevent.GameEvent;
+ import org.apache.commons.lang3.tuple.Pair;
+ 
++// CraftBukkit start
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityTransformEvent;
++// CraftBukkit end
++
+ public class EntityMushroomCow extends EntityCow implements IShearable {
+ 
+     private static final DataWatcherObject<String> DATA_TYPE = DataWatcher.a(EntityMushroomCow.class, DataWatcherRegistry.STRING);
+@@ -113,6 +118,11 @@
+             this.playSound(soundeffect, 1.0F, 1.0F);
+             return EnumInteractionResult.a(this.level.isClientSide);
+         } else if (itemstack.a(Items.SHEARS) && this.canShear()) {
++            // CraftBukkit start
++            if (!CraftEventFactory.handlePlayerShearEntityEvent(entityhuman, this, itemstack, enumhand)) {
++                return EnumInteractionResult.PASS;
++            }
++            // CraftBukkit end
+             this.shear(SoundCategory.PLAYERS);
+             this.a(GameEvent.SHEAR, (Entity) entityhuman);
+             if (!this.level.isClientSide) {
+@@ -160,7 +170,7 @@
+         this.level.playSound((EntityHuman) null, (Entity) this, SoundEffects.MOOSHROOM_SHEAR, soundcategory, 1.0F, 1.0F);
+         if (!this.level.isClientSide()) {
+             ((WorldServer) this.level).a(Particles.EXPLOSION, this.locX(), this.e(0.5D), this.locZ(), 1, 0.0D, 0.0D, 0.0D, 0.0D);
+-            this.die();
++            // this.die(); // CraftBukkit - moved down
+             EntityCow entitycow = (EntityCow) EntityTypes.COW.a(this.level);
+ 
+             entitycow.setPositionRotation(this.locX(), this.locY(), this.locZ(), this.getYRot(), this.getXRot());
+@@ -176,7 +186,14 @@
+             }
+ 
+             entitycow.setInvulnerable(this.isInvulnerable());
+-            this.level.addEntity(entitycow);
++            // CraftBukkit start
++            if (CraftEventFactory.callEntityTransformEvent(this, entitycow, EntityTransformEvent.TransformReason.SHEARED).isCancelled()) {
++                return;
++            }
++            this.level.addEntity(entitycow, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.SHEARED);
++
++            this.die(); // CraftBukkit - from above
++            // CraftBukkit end
+ 
+             for (int i = 0; i < 5; ++i) {
+                 this.level.addEntity(new EntityItem(this.level, this.locX(), this.e(1.0D), this.locZ(), new ItemStack(this.getVariant().blockState.getBlock())));

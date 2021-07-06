@@ -1,0 +1,117 @@
+--- a/net/minecraft/world/item/ItemBlock.java
++++ b/net/minecraft/world/item/ItemBlock.java
+@@ -34,6 +34,13 @@
+ import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.phys.shapes.VoxelShapeCollision;
+ 
++// CraftBukkit start
++import net.minecraft.server.level.WorldServer;
++import org.bukkit.craftbukkit.block.CraftBlock;
++import org.bukkit.craftbukkit.block.data.CraftBlockData;
++import org.bukkit.event.block.BlockCanBuildEvent;
++// CraftBukkit end
++
+ public class ItemBlock extends Item {
+ 
+     public static final String BLOCK_ENTITY_TAG = "BlockEntityTag";
+@@ -69,6 +76,12 @@
+                 return EnumInteractionResult.FAIL;
+             } else {
+                 IBlockData iblockdata = this.c(blockactioncontext1);
++                // CraftBukkit start - special case for handling block placement with water lilies
++                org.bukkit.block.BlockState blockstate = null;
++                if (this instanceof ItemWaterLily) {
++                    blockstate = org.bukkit.craftbukkit.block.CraftBlockState.getBlockState(blockactioncontext1.getWorld(), blockactioncontext1.getClickPosition());
++                }
++                // CraftBukkit end
+ 
+                 if (iblockdata == null) {
+                     return EnumInteractionResult.FAIL;
+@@ -85,6 +98,15 @@
+                         iblockdata1 = this.a(blockposition, world, itemstack, iblockdata1);
+                         this.a(blockposition, world, entityhuman, itemstack, iblockdata1);
+                         iblockdata1.getBlock().postPlace(world, blockposition, iblockdata1, entityhuman, itemstack);
++                        // CraftBukkit start
++                        if (blockstate != null) {
++                            org.bukkit.event.block.BlockPlaceEvent placeEvent = org.bukkit.craftbukkit.event.CraftEventFactory.callBlockPlaceEvent((WorldServer) world, entityhuman, blockactioncontext1.getHand(), blockstate, blockposition.getX(), blockposition.getY(), blockposition.getZ());
++                            if (placeEvent != null && (placeEvent.isCancelled() || !placeEvent.canBuild())) {
++                                blockstate.update(true, false);
++                                return EnumInteractionResult.FAIL;
++                            }
++                        }
++                        // CraftBukkit end
+                         if (entityhuman instanceof EntityPlayer) {
+                             CriterionTriggers.PLACED_BLOCK.a((EntityPlayer) entityhuman, blockposition, itemstack);
+                         }
+@@ -92,9 +114,9 @@
+ 
+                     SoundEffectType soundeffecttype = iblockdata1.getStepSound();
+ 
+-                    world.playSound(entityhuman, blockposition, this.a(iblockdata1), SoundCategory.BLOCKS, (soundeffecttype.getVolume() + 1.0F) / 2.0F, soundeffecttype.getPitch() * 0.8F);
++                    // world.playSound(entityhuman, blockposition, this.a(iblockdata1), SoundCategory.BLOCKS, (soundeffecttype.getVolume() + 1.0F) / 2.0F, soundeffecttype.getPitch() * 0.8F);
+                     world.a((Entity) entityhuman, GameEvent.BLOCK_PLACE, blockposition);
+-                    if (entityhuman == null || !entityhuman.getAbilities().instabuild) {
++                    if ((entityhuman == null || !entityhuman.getAbilities().instabuild) && itemstack != ItemStack.EMPTY) { // CraftBukkit
+                         itemstack.subtract(1);
+                     }
+ 
+@@ -130,6 +152,21 @@
+ 
+         if (nbttagcompound != null) {
+             NBTTagCompound nbttagcompound1 = nbttagcompound.getCompound("BlockStateTag");
++            // CraftBukkit start
++            iblockdata1 = getBlockState(iblockdata1, nbttagcompound1);
++        }
++
++        if (iblockdata1 != iblockdata) {
++            world.setTypeAndData(blockposition, iblockdata1, 2);
++        }
++
++        return iblockdata1;
++    }
++
++    public static IBlockData getBlockState(IBlockData iblockdata, NBTTagCompound nbttagcompound1) {
++        IBlockData iblockdata1 = iblockdata;
++        {
++            // CraftBukkit end
+             BlockStateList<Block, IBlockData> blockstatelist = iblockdata.getBlock().getStates();
+             Iterator iterator = nbttagcompound1.getKeys().iterator();
+ 
+@@ -144,11 +181,6 @@
+                 }
+             }
+         }
+-
+-        if (iblockdata1 != iblockdata) {
+-            world.setTypeAndData(blockposition, iblockdata1, 2);
+-        }
+-
+         return iblockdata1;
+     }
+ 
+@@ -161,8 +193,15 @@
+     protected boolean b(BlockActionContext blockactioncontext, IBlockData iblockdata) {
+         EntityHuman entityhuman = blockactioncontext.getEntity();
+         VoxelShapeCollision voxelshapecollision = entityhuman == null ? VoxelShapeCollision.a() : VoxelShapeCollision.a((Entity) entityhuman);
++        // CraftBukkit start - store default return
++        boolean defaultReturn = (!this.isCheckCollisions() || iblockdata.canPlace(blockactioncontext.getWorld(), blockactioncontext.getClickPosition())) && blockactioncontext.getWorld().a(iblockdata, blockactioncontext.getClickPosition(), voxelshapecollision);
++        org.bukkit.entity.Player player = (blockactioncontext.getEntity() instanceof EntityPlayer) ? (org.bukkit.entity.Player) blockactioncontext.getEntity().getBukkitEntity() : null;
++
++        BlockCanBuildEvent event = new BlockCanBuildEvent(CraftBlock.at(blockactioncontext.getWorld(), blockactioncontext.getClickPosition()), player, CraftBlockData.fromData(iblockdata), defaultReturn);
++        blockactioncontext.getWorld().getCraftServer().getPluginManager().callEvent(event);
+ 
+-        return (!this.isCheckCollisions() || iblockdata.canPlace(blockactioncontext.getWorld(), blockactioncontext.getClickPosition())) && blockactioncontext.getWorld().a(iblockdata, blockactioncontext.getClickPosition(), voxelshapecollision);
++        return event.isBuildable();
++        // CraftBukkit end
+     }
+ 
+     protected boolean isCheckCollisions() {
+@@ -247,7 +286,7 @@
+ 
+             if (nbttagcompound != null) {
+                 NBTTagList nbttaglist = nbttagcompound.getCompound("BlockEntityTag").getList("Items", 10);
+-                Stream stream = nbttaglist.stream();
++                Stream<net.minecraft.nbt.NBTBase> stream = nbttaglist.stream(); // CraftBukkit - decompile error
+ 
+                 Objects.requireNonNull(NBTTagCompound.class);
+                 ItemLiquidUtil.a(entityitem, stream.map(NBTTagCompound.class::cast).map(ItemStack::a));

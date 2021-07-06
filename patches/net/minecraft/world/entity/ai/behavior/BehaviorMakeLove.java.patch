@@ -1,0 +1,30 @@
+--- a/net/minecraft/world/entity/ai/behavior/BehaviorMakeLove.java
++++ b/net/minecraft/world/entity/ai/behavior/BehaviorMakeLove.java
+@@ -112,11 +112,16 @@
+         if (entityvillager2 == null) {
+             return Optional.empty();
+         } else {
+-            entityvillager.setAgeRaw(6000);
+-            entityvillager1.setAgeRaw(6000);
++            // CraftBukkit start - call EntityBreedEvent
+             entityvillager2.setAgeRaw(-24000);
+             entityvillager2.setPositionRotation(entityvillager.locX(), entityvillager.locY(), entityvillager.locZ(), 0.0F, 0.0F);
+-            worldserver.addAllEntities(entityvillager2);
++            if (org.bukkit.craftbukkit.event.CraftEventFactory.callEntityBreedEvent(entityvillager2, entityvillager, entityvillager1, null, null, 0).isCancelled()) {
++                return Optional.empty();
++            }
++            // CraftBukkit end
++            entityvillager.setAgeRaw(6000);
++            entityvillager1.setAgeRaw(6000);
++            worldserver.addAllEntities(entityvillager2, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.BREEDING); // CraftBukkit - added SpawnReason
+             worldserver.broadcastEntityEffect(entityvillager2, (byte) 12);
+             return Optional.of(entityvillager2);
+         }
+@@ -125,6 +130,6 @@
+     private void a(WorldServer worldserver, EntityVillager entityvillager, BlockPosition blockposition) {
+         GlobalPos globalpos = GlobalPos.create(worldserver.getDimensionKey(), blockposition);
+ 
+-        entityvillager.getBehaviorController().setMemory(MemoryModuleType.HOME, (Object) globalpos);
++        entityvillager.getBehaviorController().setMemory(MemoryModuleType.HOME, globalpos); // CraftBukkit - decompile error
+     }
+ }

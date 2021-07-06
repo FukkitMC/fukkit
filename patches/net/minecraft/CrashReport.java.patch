@@ -1,0 +1,10 @@
+--- a/net/minecraft/CrashReport.java
++++ b/net/minecraft/CrashReport.java
+@@ -31,6 +31,7 @@
+     public CrashReport(String s, Throwable throwable) {
+         this.title = s;
+         this.exception = throwable;
++        this.systemReport.a("CraftBukkit Information", new org.bukkit.craftbukkit.CraftCrashReport()); // CraftBukkit
+     }
+ 
+     public String a() {

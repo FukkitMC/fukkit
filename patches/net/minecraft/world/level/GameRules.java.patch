@@ -1,0 +1,67 @@
+--- a/net/minecraft/world/level/GameRules.java
++++ b/net/minecraft/world/level/GameRules.java
+@@ -118,7 +118,7 @@
+     }
+ 
+     public <T extends GameRules.GameRuleValue<T>> T get(GameRules.GameRuleKey<T> gamerules_gamerulekey) {
+-        return (GameRules.GameRuleValue) this.rules.get(gamerules_gamerulekey);
++        return (T) this.rules.get(gamerules_gamerulekey); // CraftBukkit - decompile error
+     }
+ 
+     public NBTTagCompound a() {
+@@ -132,7 +132,7 @@
+ 
+     private void a(DynamicLike<?> dynamiclike) {
+         this.rules.forEach((gamerules_gamerulekey, gamerules_gamerulevalue) -> {
+-            Optional optional = dynamiclike.get(gamerules_gamerulekey.id).asString().result();
++            Optional<String> optional = dynamiclike.get(gamerules_gamerulekey.id).asString().result(); // CraftBukkit - decompile error
+ 
+             Objects.requireNonNull(gamerules_gamerulevalue);
+             optional.ifPresent(gamerules_gamerulevalue::setValue);
+@@ -152,8 +152,8 @@
+     }
+ 
+     private static <T extends GameRules.GameRuleValue<T>> void a(GameRules.GameRuleVisitor gamerules_gamerulevisitor, GameRules.GameRuleKey<?> gamerules_gamerulekey, GameRules.GameRuleDefinition<?> gamerules_gameruledefinition) {
+-        gamerules_gamerulevisitor.a(gamerules_gamerulekey, gamerules_gameruledefinition);
+-        gamerules_gameruledefinition.a(gamerules_gamerulevisitor, gamerules_gamerulekey);
++        gamerules_gamerulevisitor.a((GameRules.GameRuleKey<T>) gamerules_gamerulekey, (GameRules.GameRuleDefinition<T>) gamerules_gameruledefinition); // CraftBukkit - decompile error
++        ((GameRules.GameRuleDefinition<T>) gamerules_gameruledefinition).a(gamerules_gamerulevisitor, (GameRules.GameRuleKey<T>) gamerules_gamerulekey); // CraftBukkit - decompile error
+     }
+ 
+     public void a(GameRules gamerules, @Nullable MinecraftServer minecraftserver) {
+@@ -245,7 +245,7 @@
+         }
+ 
+         public T getValue() {
+-            return (GameRules.GameRuleValue) this.constructor.apply(this);
++            return this.constructor.apply(this); // CraftBukkit - decompile error
+         }
+ 
+         public void a(GameRules.GameRuleVisitor gamerules_gamerulevisitor, GameRules.GameRuleKey<T> gamerules_gamerulekey) {
+@@ -275,7 +275,7 @@
+ 
+         }
+ 
+-        protected abstract void setValue(String s);
++        public abstract void setValue(String s); // PAIL - private->public
+ 
+         public abstract String getValue();
+ 
+@@ -341,7 +341,7 @@
+         }
+ 
+         @Override
+-        protected void setValue(String s) {
++        public void setValue(String s) { // PAIL - protected->public
+             this.value = Boolean.parseBoolean(s);
+         }
+ 
+@@ -406,7 +406,7 @@
+         }
+ 
+         @Override
+-        protected void setValue(String s) {
++        public void setValue(String s) { // PAIL - protected->public
+             this.value = c(s);
+         }
+ 

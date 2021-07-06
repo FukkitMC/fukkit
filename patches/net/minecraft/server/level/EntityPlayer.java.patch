@@ -1,0 +1,999 @@
+--- a/net/minecraft/server/level/EntityPlayer.java
++++ b/net/minecraft/server/level/EntityPlayer.java
+@@ -140,6 +140,36 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
++// CraftBukkit start
++import net.minecraft.nbt.NBTBase;
++import net.minecraft.world.damagesource.CombatTracker;
++import net.minecraft.world.food.FoodMetaData;
++import net.minecraft.world.item.enchantment.EnchantmentManager;
++import net.minecraft.world.level.block.BlockChest;
++import net.minecraft.world.level.dimension.DimensionManager;
++import net.minecraft.world.scores.Scoreboard;
++import org.bukkit.Bukkit;
++import org.bukkit.GameMode;
++import org.bukkit.Location;
++import org.bukkit.WeatherType;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.craftbukkit.event.CraftPortalEvent;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.craftbukkit.util.CraftDimensionUtil;
++import org.bukkit.event.inventory.InventoryType;
++import org.bukkit.event.player.PlayerBedLeaveEvent;
++import org.bukkit.event.player.PlayerChangedMainHandEvent;
++import org.bukkit.event.player.PlayerChangedWorldEvent;
++import org.bukkit.event.player.PlayerGameModeChangeEvent;
++import org.bukkit.event.player.PlayerLocaleChangeEvent;
++import org.bukkit.event.player.PlayerPortalEvent;
++import org.bukkit.event.player.PlayerTeleportEvent;
++import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
++import org.bukkit.inventory.MainHand;
++// CraftBukkit end
++
+ public class EntityPlayer extends EntityHuman {
+ 
+     private static final Logger LOGGER = LogManager.getLogger();
+@@ -187,6 +217,20 @@
+     public int latency;
+     public boolean wonGame;
+ 
++    // CraftBukkit start
++    public String displayName;
++    public IChatBaseComponent listName;
++    public org.bukkit.Location compassTarget;
++    public int newExp = 0;
++    public int newLevel = 0;
++    public int newTotalExp = 0;
++    public boolean keepLevel = false;
++    public double maxHealthCache;
++    public boolean joining = true;
++    public boolean sentListPacket = false;
++    public Integer clientViewDistance;
++    // CraftBukkit end
++
+     public EntityPlayer(MinecraftServer minecraftserver, WorldServer worldserver, GameProfile gameprofile) {
+         super(worldserver, worldserver.getSpawn(), worldserver.x(), gameprofile);
+         this.chatVisibility = EnumChatVisibility.FULL;
+@@ -253,12 +297,56 @@
+         this.advancements = minecraftserver.getPlayerList().f(this);
+         this.maxUpStep = 1.0F;
+         this.d(worldserver);
++
++        // CraftBukkit start
++        this.displayName = this.getName();
++        this.bukkitPickUpLoot = true;
++        this.maxHealthCache = this.getMaxHealth();
++    }
++
++    // Yes, this doesn't match Vanilla, but it's the best we can do for now.
++    // If this is an issue, PRs are welcome
++    public final BlockPosition getSpawnPoint(WorldServer worldserver) {
++        BlockPosition blockposition = worldserver.getSpawn();
++
++        if (worldserver.getDimensionManager().hasSkyLight() && worldserver.serverLevelData.getGameType() != EnumGamemode.ADVENTURE) {
++            int i = Math.max(0, this.server.a(worldserver));
++            int j = MathHelper.floor(worldserver.getWorldBorder().b((double) blockposition.getX(), (double) blockposition.getZ()));
++
++            if (j < i) {
++                i = j;
++            }
++
++            if (j <= 1) {
++                i = 1;
++            }
++
++            long k = (long) (i * 2 + 1);
++            long l = k * k;
++            int i1 = l > 2147483647L ? Integer.MAX_VALUE : (int) l;
++            int j1 = this.v(i1);
++            int k1 = (new Random()).nextInt(i1);
++
++            for (int l1 = 0; l1 < i1; ++l1) {
++                int i2 = (k1 + j1 * l1) % i1;
++                int j2 = i2 % (i * 2 + 1);
++                int k2 = i2 / (i * 2 + 1);
++                BlockPosition blockposition1 = WorldProviderNormal.a(worldserver, blockposition.getX() + j2 - i, blockposition.getZ() + k2 - i, false);
++
++                if (blockposition1 != null) {
++                    return blockposition1;
++                }
++            }
++        }
++
++        return blockposition;
+     }
++    // CraftBukkit end
+ 
+     private void d(WorldServer worldserver) {
+         BlockPosition blockposition = worldserver.getSpawn();
+ 
+-        if (worldserver.getDimensionManager().hasSkyLight() && worldserver.getMinecraftServer().getSaveData().getGameType() != EnumGamemode.ADVENTURE) {
++        if (worldserver.getDimensionManager().hasSkyLight() && worldserver.serverLevelData.getGameType() != EnumGamemode.ADVENTURE) { // CraftBukkit
+             int i = Math.max(0, this.server.a(worldserver));
+             int j = MathHelper.floor(worldserver.getWorldBorder().b((double) blockposition.getX(), (double) blockposition.getZ()));
+ 
+@@ -316,11 +404,20 @@
+         if (nbttagcompound.hasKeyOfType("recipeBook", 10)) {
+             this.recipeBook.a(nbttagcompound.getCompound("recipeBook"), this.server.getCraftingManager());
+         }
++        this.getBukkitEntity().readExtraData(nbttagcompound); // CraftBukkit
+ 
+         if (this.isSleeping()) {
+             this.entityWakeup();
+         }
+ 
++        // CraftBukkit start
++        String spawnWorld = nbttagcompound.getString("SpawnWorld");
++        CraftWorld oldWorld = (CraftWorld) Bukkit.getWorld(spawnWorld);
++        if (oldWorld != null) {
++            this.respawnDimension = oldWorld.getHandle().getDimensionKey();
++        }
++        // CraftBukkit end
++
+         if (nbttagcompound.hasKeyOfType("SpawnX", 99) && nbttagcompound.hasKeyOfType("SpawnY", 99) && nbttagcompound.hasKeyOfType("SpawnZ", 99)) {
+             this.respawnPosition = new BlockPosition(nbttagcompound.getInt("SpawnX"), nbttagcompound.getInt("SpawnY"), nbttagcompound.getInt("SpawnZ"));
+             this.respawnForced = nbttagcompound.getBoolean("SpawnForced");
+@@ -353,7 +450,20 @@
+         Entity entity = this.getRootVehicle();
+         Entity entity1 = this.getVehicle();
+ 
+-        if (entity1 != null && entity != this && entity.hasSinglePlayerPassenger()) {
++        // CraftBukkit start - handle non-persistent vehicles
++        boolean persistVehicle = true;
++        if (entity1 != null) {
++            Entity vehicle;
++            for (vehicle = entity1; vehicle != null; vehicle = vehicle.getVehicle()) {
++                if (!vehicle.persist) {
++                    persistVehicle = false;
++                    break;
++                }
++            }
++        }
++
++        if (persistVehicle && entity1 != null && entity != this && entity.hasSinglePlayerPassenger()) {
++            // CraftBukkit end
+             NBTTagCompound nbttagcompound2 = new NBTTagCompound();
+             NBTTagCompound nbttagcompound3 = new NBTTagCompound();
+ 
+@@ -371,7 +481,7 @@
+             nbttagcompound.setInt("SpawnZ", this.respawnPosition.getZ());
+             nbttagcompound.setBoolean("SpawnForced", this.respawnForced);
+             nbttagcompound.setFloat("SpawnAngle", this.respawnAngle);
+-            DataResult dataresult = MinecraftKey.CODEC.encodeStart(DynamicOpsNBT.INSTANCE, this.respawnDimension.a());
++            DataResult<NBTBase> dataresult = MinecraftKey.CODEC.encodeStart(DynamicOpsNBT.INSTANCE, this.respawnDimension.a()); // CraftBukkit - decompile error
+             Logger logger = EntityPlayer.LOGGER;
+ 
+             Objects.requireNonNull(logger);
+@@ -379,9 +489,33 @@
+                 nbttagcompound.set("SpawnDimension", nbtbase);
+             });
+         }
++        this.getBukkitEntity().setExtraData(nbttagcompound); // CraftBukkit
+ 
+     }
+ 
++    // CraftBukkit start - World fallback code, either respawn location or global spawn
++    public void spawnIn(World world) {
++        this.level = world;
++        if (world == null) {
++            this.unsetRemoved();
++            Vec3D position = null;
++            if (this.respawnDimension != null) {
++                world = this.getWorldServer().getCraftServer().getHandle().getServer().getWorldServer(this.respawnDimension);
++                if (world != null && this.getSpawn() != null) {
++                    position = EntityHuman.getBed((WorldServer) world, this.getSpawn(), this.getSpawnAngle(), false, false).orElse(null);
++                }
++            }
++            if (world == null || position == null) {
++                world = ((CraftWorld) Bukkit.getServer().getWorlds().get(0)).getHandle();
++                position = Vec3D.a(((WorldServer) world).getSpawn());
++            }
++            this.level = world;
++            this.setPosition(position.getX(), position.getY(), position.getZ());
++        }
++        this.gameMode.a((WorldServer) world);
++    }
++    // CraftBukkit end
++
+     public void a(int i) {
+         float f = (float) this.getExpToLevel();
+         float f1 = (f - 1.0F) / f;
+@@ -440,6 +574,11 @@
+ 
+     @Override
+     public void tick() {
++        // CraftBukkit start
++        if (this.joining) {
++            this.joining = false;
++        }
++        // CraftBukkit end
+         this.gameMode.a();
+         --this.spawnInvulnerableTime;
+         if (this.invulnerableTime > 0) {
+@@ -493,7 +632,7 @@
+             }
+ 
+             if (this.getHealth() != this.lastSentHealth || this.lastSentFood != this.foodData.getFoodLevel() || this.foodData.getSaturationLevel() == 0.0F != this.lastFoodSaturationZero) {
+-                this.connection.sendPacket(new PacketPlayOutUpdateHealth(this.getHealth(), this.foodData.getFoodLevel(), this.foodData.getSaturationLevel()));
++                this.connection.sendPacket(new PacketPlayOutUpdateHealth(this.getBukkitEntity().getScaledHealth(), this.foodData.getFoodLevel(), this.foodData.getSaturationLevel())); // CraftBukkit
+                 this.lastSentHealth = this.getHealth();
+                 this.lastSentFood = this.foodData.getFoodLevel();
+                 this.lastFoodSaturationZero = this.foodData.getSaturationLevel() == 0.0F;
+@@ -524,6 +663,12 @@
+                 this.a(IScoreboardCriteria.EXPERIENCE, MathHelper.f((float) this.lastRecordedExperience));
+             }
+ 
++            // CraftBukkit start - Force max health updates
++            if (this.maxHealthCache != this.getMaxHealth()) {
++                this.getBukkitEntity().updateScaledHealth();
++            }
++            // CraftBukkit end
++
+             if (this.experienceLevel != this.lastRecordedLevel) {
+                 this.lastRecordedLevel = this.experienceLevel;
+                 this.a(IScoreboardCriteria.LEVEL, MathHelper.f((float) this.lastRecordedLevel));
+@@ -538,6 +683,16 @@
+                 CriterionTriggers.LOCATION.a(this);
+             }
+ 
++            // CraftBukkit start - initialize oldLevel and fire PlayerLevelChangeEvent
++            if (this.oldLevel == -1) {
++                this.oldLevel = this.experienceLevel;
++            }
++
++            if (this.oldLevel != this.experienceLevel) {
++                CraftEventFactory.callPlayerLevelChangeEvent(this.getBukkitEntity(), this.oldLevel, this.experienceLevel);
++                this.oldLevel = this.experienceLevel;
++            }
++            // CraftBukkit end
+         } catch (Throwable throwable) {
+             CrashReport crashreport = CrashReport.a(throwable, "Ticking player");
+             CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Player being ticked");
+@@ -548,7 +703,8 @@
+     }
+ 
+     private void a(IScoreboardCriteria iscoreboardcriteria, int i) {
+-        this.getScoreboard().getObjectivesForCriteria(iscoreboardcriteria, this.getName(), (scoreboardscore) -> {
++        // CraftBukkit - Use our scores instead
++        this.level.getCraftServer().getScoreboardManager().getScoreboardScores(iscoreboardcriteria, this.getName(), (scoreboardscore) -> {
+             scoreboardscore.setScore(i);
+         });
+     }
+@@ -556,9 +712,46 @@
+     @Override
+     public void die(DamageSource damagesource) {
+         boolean flag = this.level.getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
++        // CraftBukkit start - fire PlayerDeathEvent
++        if (this.isRemoved()) {
++            return;
++        }
++        java.util.List<org.bukkit.inventory.ItemStack> loot = new java.util.ArrayList<org.bukkit.inventory.ItemStack>(this.getInventory().getSize());
++        boolean keepInventory = this.level.getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY) || this.isSpectator();
++
++        if (!keepInventory) {
++            for (ItemStack item : this.getInventory().getContents()) {
++                if (!item.isEmpty() && !EnchantmentManager.shouldNotDrop(item)) {
++                    loot.add(CraftItemStack.asCraftMirror(item));
++                }
++            }
++        }
++        // SPIGOT-5071: manually add player loot tables (SPIGOT-5195 - ignores keepInventory rule)
++        this.a(damagesource, this.lastHurtByPlayerTime > 0);
++        for (org.bukkit.inventory.ItemStack item : this.drops) {
++            loot.add(item);
++        }
++        this.drops.clear(); // SPIGOT-5188: make sure to clear
+ 
+-        if (flag) {
+-            IChatBaseComponent ichatbasecomponent = this.getCombatTracker().getDeathMessage();
++        IChatBaseComponent defaultMessage = this.getCombatTracker().getDeathMessage();
++
++        String deathmessage = defaultMessage.getString();
++        org.bukkit.event.entity.PlayerDeathEvent event = CraftEventFactory.callPlayerDeathEvent(this, loot, deathmessage, keepInventory);
++
++        // SPIGOT-943 - only call if they have an inventory open
++        if (this.containerMenu != this.inventoryMenu) {
++            this.closeInventory();
++        }
++
++        String deathMessage = event.getDeathMessage();
++
++        if (deathMessage != null && deathMessage.length() > 0 && flag) { // TODO: allow plugins to override?
++            IChatBaseComponent ichatbasecomponent;
++            if (deathMessage.equals(deathmessage)) {
++                ichatbasecomponent = this.getCombatTracker().getDeathMessage();
++            } else {
++                ichatbasecomponent = org.bukkit.craftbukkit.util.CraftChatMessage.fromStringOrNull(deathMessage);
++            }
+ 
+             this.connection.a((Packet) (new ClientboundPlayerCombatKillPacket(this.getCombatTracker(), ichatbasecomponent)), (future) -> {
+                 if (!future.isSuccess()) {
+@@ -592,12 +785,18 @@
+         if (this.level.getGameRules().getBoolean(GameRules.RULE_FORGIVE_DEAD_PLAYERS)) {
+             this.fH();
+         }
+-
+-        if (!this.isSpectator()) {
+-            this.f(damagesource);
++        // SPIGOT-5478 must be called manually now
++        this.dropExperience();
++        // we clean the player's inventory after the EntityDeathEvent is called so plugins can get the exact state of the inventory.
++        if (!event.getKeepInventory()) {
++            this.getInventory().clear();
+         }
+ 
+-        this.getScoreboard().getObjectivesForCriteria(IScoreboardCriteria.DEATH_COUNT, this.getName(), ScoreboardScore::incrementScore);
++        this.setSpectatorTarget(this); // Remove spectated target
++        // CraftBukkit end
++
++        // CraftBukkit - Get our scores instead
++        this.level.getCraftServer().getScoreboardManager().getScoreboardScores(IScoreboardCriteria.DEATH_COUNT, this.getName(), ScoreboardScore::incrementScore);
+         EntityLiving entityliving = this.getKillingEntity();
+ 
+         if (entityliving != null) {
+@@ -634,10 +833,12 @@
+             String s = this.getName();
+             String s1 = entity.getName();
+ 
+-            this.getScoreboard().getObjectivesForCriteria(IScoreboardCriteria.KILL_COUNT_ALL, s, ScoreboardScore::incrementScore);
++            // CraftBukkit - Get our scores instead
++            this.level.getCraftServer().getScoreboardManager().getScoreboardScores(IScoreboardCriteria.KILL_COUNT_ALL, s, ScoreboardScore::incrementScore);
+             if (entity instanceof EntityHuman) {
+                 this.a(StatisticList.PLAYER_KILLS);
+-                this.getScoreboard().getObjectivesForCriteria(IScoreboardCriteria.KILL_COUNT_PLAYERS, s, ScoreboardScore::incrementScore);
++                // CraftBukkit - Get our scores instead
++                this.level.getCraftServer().getScoreboardManager().getScoreboardScores(IScoreboardCriteria.KILL_COUNT_PLAYERS, s, ScoreboardScore::incrementScore);
+             } else {
+                 this.a(StatisticList.MOB_KILLS);
+             }
+@@ -655,7 +856,8 @@
+             int i = scoreboardteam.getColor().b();
+ 
+             if (i >= 0 && i < aiscoreboardcriteria.length) {
+-                this.getScoreboard().getObjectivesForCriteria(aiscoreboardcriteria[i], s, ScoreboardScore::incrementScore);
++                // CraftBukkit - Get our scores instead
++                this.level.getCraftServer().getScoreboardManager().getScoreboardScores(aiscoreboardcriteria[i], s, ScoreboardScore::incrementScore);
+             }
+         }
+ 
+@@ -699,18 +901,20 @@
+     }
+ 
+     private boolean canPvP() {
+-        return this.server.getPVP();
++        // CraftBukkit - this.server.getPvP() -> this.world.pvpMode
++        return this.level.pvpMode;
+     }
+ 
+     @Nullable
+     @Override
+     protected ShapeDetectorShape a(WorldServer worldserver) {
+         ShapeDetectorShape shapedetectorshape = super.a(worldserver);
++        worldserver = (shapedetectorshape == null) ? worldserver : shapedetectorshape.world; // CraftBukkit
+ 
+-        if (shapedetectorshape != null && this.level.getDimensionKey() == World.OVERWORLD && worldserver.getDimensionKey() == World.END) {
++        if (shapedetectorshape != null && this.level.getTypeKey() == DimensionManager.OVERWORLD_LOCATION && worldserver != null && worldserver.getTypeKey() == DimensionManager.END_LOCATION) { // CraftBukkit
+             Vec3D vec3d = shapedetectorshape.pos.add(0.0D, -1.0D, 0.0D);
+ 
+-            return new ShapeDetectorShape(vec3d, Vec3D.ZERO, 90.0F, 0.0F);
++            return new ShapeDetectorShape(vec3d, Vec3D.ZERO, 90.0F, 0.0F, worldserver, shapedetectorshape.portalEventInfo); // CraftBukkit
+         } else {
+             return shapedetectorshape;
+         }
+@@ -719,11 +923,20 @@
+     @Nullable
+     @Override
+     public Entity b(WorldServer worldserver) {
+-        this.isChangingDimension = true;
++        // CraftBukkit start
++        return b(worldserver, TeleportCause.UNKNOWN);
++    }
++
++    @Nullable
++    public Entity b(WorldServer worldserver, PlayerTeleportEvent.TeleportCause cause) {
++        // CraftBukkit end
++        if (this.isSleeping()) return this; // CraftBukkit - SPIGOT-3154
++        // this.worldChangeInvuln = true; // CraftBukkit - Moved down and into PlayerList#changeDimension
+         WorldServer worldserver1 = this.getWorldServer();
+-        ResourceKey<World> resourcekey = worldserver1.getDimensionKey();
++        ResourceKey<DimensionManager> resourcekey = worldserver1.getTypeKey(); // CraftBukkit
+ 
+-        if (resourcekey == World.END && worldserver.getDimensionKey() == World.OVERWORLD) {
++        if (resourcekey == DimensionManager.END_LOCATION && worldserver != null && worldserver.getTypeKey() == DimensionManager.OVERWORLD_LOCATION) { // CraftBukkit
++            this.isChangingDimension = true; // CraftBukkit - Moved down from above
+             this.decouple();
+             this.getWorldServer().a(this, Entity.RemovalReason.CHANGED_DIMENSION);
+             if (!this.wonGame) {
+@@ -734,6 +947,8 @@
+ 
+             return this;
+         } else {
++            // CraftBukkit start
++            /*
+             WorldData worlddata = worldserver.getWorldData();
+ 
+             this.connection.sendPacket(new PacketPlayOutRespawn(worldserver.getDimensionManager(), worldserver.getDimensionKey(), BiomeManager.a(worldserver.getSeed()), this.gameMode.getGameMode(), this.gameMode.c(), worldserver.isDebugWorld(), worldserver.isFlatWorld(), true));
+@@ -743,22 +958,52 @@
+             playerlist.d(this);
+             worldserver1.a(this, Entity.RemovalReason.CHANGED_DIMENSION);
+             this.unsetRemoved();
++            */
++            // CraftBukkit end
+             ShapeDetectorShape shapedetectorshape = this.a(worldserver);
+ 
+             if (shapedetectorshape != null) {
+                 worldserver1.getMethodProfiler().enter("moving");
+-                if (resourcekey == World.OVERWORLD && worldserver.getDimensionKey() == World.NETHER) {
++                worldserver = shapedetectorshape.world; // CraftBukkit
++                if (worldserver == null) { } else // CraftBukkit - empty to fall through to null to event
++                if (resourcekey == DimensionManager.OVERWORLD_LOCATION && worldserver.getTypeKey() == DimensionManager.NETHER_LOCATION) { // CraftBukkit
+                     this.enteredNetherPosition = this.getPositionVector();
+-                } else if (worldserver.getDimensionKey() == World.END) {
++                } else if (worldserver.getTypeKey() == DimensionManager.END_LOCATION && shapedetectorshape.portalEventInfo != null && shapedetectorshape.portalEventInfo.getCanCreatePortal()) { // CraftBukkit
+                     this.a(worldserver, new BlockPosition(shapedetectorshape.pos));
+                 }
++                // CraftBukkit start
++            } else {
++                return null;
++            }
++            Location enter = this.getBukkitEntity().getLocation();
++            Location exit = (worldserver == null) ? null : new Location(worldserver.getWorld(), shapedetectorshape.pos.x, shapedetectorshape.pos.y, shapedetectorshape.pos.z, shapedetectorshape.yRot, shapedetectorshape.xRot);
++            PlayerTeleportEvent tpEvent = new PlayerTeleportEvent(this.getBukkitEntity(), enter, exit, cause);
++            Bukkit.getServer().getPluginManager().callEvent(tpEvent);
++            if (tpEvent.isCancelled() || tpEvent.getTo() == null) {
++                return null;
++            }
++            exit = tpEvent.getTo();
++            worldserver = ((CraftWorld) exit.getWorld()).getHandle();
++            // CraftBukkit end
++
++            worldserver1.getMethodProfiler().exit();
++            worldserver1.getMethodProfiler().enter("placing");
++            if (true) { // CraftBukkit
++                this.isChangingDimension = true; // CraftBukkit - Set teleport invulnerability only if player changing worlds
++
++                this.connection.sendPacket(new PacketPlayOutRespawn(worldserver.getDimensionManager(), worldserver.getDimensionKey(), BiomeManager.a(worldserver.getSeed()), this.gameMode.getGameMode(), this.gameMode.c(), worldserver.isDebugWorld(), worldserver.isFlatWorld(), true));
++                this.connection.sendPacket(new PacketPlayOutServerDifficulty(this.level.getDifficulty(), this.level.getWorldData().isDifficultyLocked()));
++                PlayerList playerlist = this.server.getPlayerList();
++
++                playerlist.d(this);
++                worldserver1.a(this, Entity.RemovalReason.CHANGED_DIMENSION);
++                this.unsetRemoved();
+ 
+-                worldserver1.getMethodProfiler().exit();
+-                worldserver1.getMethodProfiler().enter("placing");
++                // CraftBukkit end
+                 this.spawnIn(worldserver);
+                 worldserver.addPlayerPortal(this);
+-                this.setYawPitch(shapedetectorshape.yRot, shapedetectorshape.xRot);
+-                this.teleportAndSync(shapedetectorshape.pos.x, shapedetectorshape.pos.y, shapedetectorshape.pos.z);
++                this.connection.teleport(exit); // CraftBukkit - use internal teleport without event
++                this.connection.syncPosition(); // CraftBukkit - sync position after changing it (from PortalTravelAgent#findAndteleport)
+                 worldserver1.getMethodProfiler().exit();
+                 this.triggerDimensionAdvancements(worldserver1);
+                 this.connection.sendPacket(new PacketPlayOutAbilities(this.getAbilities()));
+@@ -776,12 +1021,31 @@
+                 this.lastSentExp = -1;
+                 this.lastSentHealth = -1.0F;
+                 this.lastSentFood = -1;
++
++                // CraftBukkit start
++                PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
++                this.level.getCraftServer().getPluginManager().callEvent(changeEvent);
++                // CraftBukkit end
+             }
+ 
+             return this;
+         }
+     }
+ 
++    // CraftBukkit start
++    @Override
++    protected CraftPortalEvent callPortalEvent(Entity entity, WorldServer exitWorldServer, BlockPosition exitPosition, TeleportCause cause, int searchRadius, int creationRadius) {
++        Location enter = this.getBukkitEntity().getLocation();
++        Location exit = new Location(exitWorldServer.getWorld(), exitPosition.getX(), exitPosition.getY(), exitPosition.getZ(), getYRot(), getXRot());
++        PlayerPortalEvent event = new PlayerPortalEvent(this.getBukkitEntity(), enter, exit, cause, searchRadius, true, creationRadius);
++        Bukkit.getServer().getPluginManager().callEvent(event);
++        if (event.isCancelled() || event.getTo() == null || event.getTo().getWorld() == null) {
++            return null;
++        }
++        return new CraftPortalEvent(event);
++    }
++    // CraftBukkit end
++
+     private void a(WorldServer worldserver, BlockPosition blockposition) {
+         BlockPosition.MutableBlockPosition blockposition_mutableblockposition = blockposition.i();
+ 
+@@ -798,17 +1062,17 @@
+     }
+ 
+     @Override
+-    protected Optional<BlockUtil.Rectangle> findOrCreatePortal(WorldServer worldserver, BlockPosition blockposition, boolean flag) {
+-        Optional<BlockUtil.Rectangle> optional = super.findOrCreatePortal(worldserver, blockposition, flag);
++    protected Optional<BlockUtil.Rectangle> findOrCreatePortal(WorldServer worldserver, BlockPosition blockposition, boolean flag, int searchRadius, boolean canCreatePortal, int createRadius) { // CraftBukkit
++        Optional<BlockUtil.Rectangle> optional = super.findOrCreatePortal(worldserver, blockposition, flag, searchRadius, canCreatePortal, createRadius); // CraftBukkit
+ 
+-        if (optional.isPresent()) {
++        if (optional.isPresent() || !canCreatePortal) { // CraftBukkit
+             return optional;
+         } else {
+             EnumDirection.EnumAxis enumdirection_enumaxis = (EnumDirection.EnumAxis) this.level.getType(this.portalEntrancePos).d(BlockPortal.AXIS).orElse(EnumDirection.EnumAxis.X);
+-            Optional<BlockUtil.Rectangle> optional1 = worldserver.getTravelAgent().createPortal(blockposition, enumdirection_enumaxis);
++            Optional<BlockUtil.Rectangle> optional1 = worldserver.getTravelAgent().createPortal(blockposition, enumdirection_enumaxis, this, createRadius); // CraftBukkit
+ 
+             if (!optional1.isPresent()) {
+-                EntityPlayer.LOGGER.error("Unable to create a portal, likely target out of worldborder");
++                // EntityPlayer.LOGGER.error("Unable to create a portal, likely target out of worldborder"); // CraftBukkit
+             }
+ 
+             return optional1;
+@@ -818,13 +1082,21 @@
+     public void triggerDimensionAdvancements(WorldServer worldserver) {
+         ResourceKey<World> resourcekey = worldserver.getDimensionKey();
+         ResourceKey<World> resourcekey1 = this.level.getDimensionKey();
++        // CraftBukkit start
++        ResourceKey<World> maindimensionkey = CraftDimensionUtil.getMainDimensionKey(worldserver);
++        ResourceKey<World> maindimensionkey1 = CraftDimensionUtil.getMainDimensionKey(this.level);
+ 
+-        CriterionTriggers.CHANGED_DIMENSION.a(this, resourcekey, resourcekey1);
+-        if (resourcekey == World.NETHER && resourcekey1 == World.OVERWORLD && this.enteredNetherPosition != null) {
++        CriterionTriggers.CHANGED_DIMENSION.a(this, maindimensionkey, maindimensionkey1);
++        if (maindimensionkey != resourcekey || maindimensionkey1 != resourcekey1) {
++            CriterionTriggers.CHANGED_DIMENSION.a(this, resourcekey, resourcekey1);
++        }
++
++        if (maindimensionkey == World.NETHER && maindimensionkey1 == World.OVERWORLD && this.enteredNetherPosition != null) {
++            // CraftBukkit end
+             CriterionTriggers.NETHER_TRAVEL.a(this, this.enteredNetherPosition);
+         }
+ 
+-        if (resourcekey1 != World.NETHER) {
++        if (maindimensionkey1 != World.NETHER) { // CraftBukkit
+             this.enteredNetherPosition = null;
+         }
+ 
+@@ -852,10 +1124,8 @@
+         this.containerMenu.d();
+     }
+ 
+-    @Override
+-    public Either<EntityHuman.EnumBedResult, Unit> sleep(BlockPosition blockposition) {
+-        EnumDirection enumdirection = (EnumDirection) this.level.getType(blockposition).get(BlockFacingHorizontal.FACING);
+-
++    // CraftBukkit start - moved bed result checks from below into separate method
++    private Either<EntityHuman.EnumBedResult, Unit> getBedResult(BlockPosition blockposition, EnumDirection enumdirection) {
+         if (!this.isSleeping() && this.isAlive()) {
+             if (!this.level.getDimensionManager().isNatural()) {
+                 return Either.left(EntityHuman.EnumBedResult.NOT_POSSIBLE_HERE);
+@@ -881,7 +1151,36 @@
+                         }
+                     }
+ 
+-                    Either<EntityHuman.EnumBedResult, Unit> either = super.sleep(blockposition).ifRight((unit) -> {
++                    return Either.right(Unit.INSTANCE);
++                }
++            }
++        } else {
++            return Either.left(EntityHuman.EnumBedResult.OTHER_PROBLEM);
++        }
++    }
++
++    @Override
++    public Either<EntityHuman.EnumBedResult, Unit> sleep(BlockPosition blockposition, boolean force) {
++        EnumDirection enumdirection = (EnumDirection) this.level.getType(blockposition).get(BlockFacingHorizontal.FACING);
++        Either<EntityHuman.EnumBedResult, Unit> bedResult = this.getBedResult(blockposition, enumdirection);
++
++        if (bedResult.left().orElse(null) == EntityHuman.EnumBedResult.OTHER_PROBLEM) {
++            return bedResult; // return immediately if the result is not bypassable by plugins
++        }
++
++        if (force) {
++            bedResult = Either.right(Unit.INSTANCE);
++        }
++
++        bedResult = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerBedEnterEvent(this, blockposition, bedResult);
++        if (bedResult.left().isPresent()) {
++            return bedResult;
++        }
++
++        {
++            {
++                {
++                    Either<EntityHuman.EnumBedResult, Unit> either = super.sleep(blockposition, force).ifRight((unit) -> {
+                         this.a(StatisticList.SLEEP_IN_BED);
+                         CriterionTriggers.SLEPT_IN_BED.a(this);
+                     });
+@@ -894,9 +1193,8 @@
+                     return either;
+                 }
+             }
+-        } else {
+-            return Either.left(EntityHuman.EnumBedResult.OTHER_PROBLEM);
+         }
++        // CraftBukkit end
+     }
+ 
+     @Override
+@@ -923,6 +1221,24 @@
+ 
+     @Override
+     public void wakeup(boolean flag, boolean flag1) {
++        if (!this.isSleeping()) return; // CraftBukkit - Can't leave bed if not in one!
++        // CraftBukkit start - fire PlayerBedLeaveEvent
++        CraftPlayer player = this.getBukkitEntity();
++        BlockPosition bedPosition = this.getBedPosition().orElse(null);
++
++        org.bukkit.block.Block bed;
++        if (bedPosition != null) {
++            bed = this.level.getWorld().getBlockAt(bedPosition.getX(), bedPosition.getY(), bedPosition.getZ());
++        } else {
++            bed = this.level.getWorld().getBlockAt(player.getLocation());
++        }
++
++        PlayerBedLeaveEvent event = new PlayerBedLeaveEvent(player, bed, true);
++        this.level.getCraftServer().getPluginManager().callEvent(event);
++        if (event.isCancelled()) {
++            return;
++        }
++        // CraftBukkit end
+         if (this.isSleeping()) {
+             this.getWorldServer().getChunkProvider().broadcastIncludingSelf(this, new PacketPlayOutAnimation(this, 2));
+         }
+@@ -1004,8 +1320,9 @@
+         this.connection.sendPacket(new PacketPlayOutOpenSignEditor(tileentitysign.getPosition()));
+     }
+ 
+-    public void nextContainerCounter() {
++    public int nextContainerCounter() { // CraftBukkit - void -> int
+         this.containerCounter = this.containerCounter % 100 + 1;
++        return containerCounter; // CraftBukkit
+     }
+ 
+     @Override
+@@ -1020,6 +1337,24 @@
+             this.nextContainerCounter();
+             Container container = itileinventory.createMenu(this.containerCounter, this.getInventory(), this);
+ 
++            // CraftBukkit start - Inventory open hook
++            if (container != null) {
++                container.setTitle(itileinventory.getScoreboardDisplayName());
++
++                boolean cancelled = false;
++                container = CraftEventFactory.callInventoryOpenEvent(this, container, cancelled);
++                if (container == null && !cancelled) { // Let pre-cancelled events fall through
++                    // SPIGOT-5263 - close chest if cancelled
++                    if (itileinventory instanceof IInventory) {
++                        ((IInventory) itileinventory).closeContainer(this);
++                    } else if (itileinventory instanceof BlockChest.DoubleInventory) {
++                        // SPIGOT-5355 - double chests too :(
++                        ((BlockChest.DoubleInventory) itileinventory).inventorylargechest.closeContainer(this);
++                    }
++                    return OptionalInt.empty();
++                }
++            }
++            // CraftBukkit end
+             if (container == null) {
+                 if (this.isSpectator()) {
+                     this.a((IChatBaseComponent) (new ChatMessage("container.spectatorCantOpen")).a(EnumChatFormat.RED), true);
+@@ -1027,9 +1362,11 @@
+ 
+                 return OptionalInt.empty();
+             } else {
+-                this.connection.sendPacket(new PacketPlayOutOpenWindow(container.containerId, container.getType(), itileinventory.getScoreboardDisplayName()));
+-                this.initMenu(container);
++                // CraftBukkit start
+                 this.containerMenu = container;
++                this.connection.sendPacket(new PacketPlayOutOpenWindow(container.containerId, container.getType(), container.getTitle()));
++                // CraftBukkit end
++                this.initMenu(container);
+                 return OptionalInt.of(this.containerCounter);
+             }
+         }
+@@ -1042,13 +1379,24 @@
+ 
+     @Override
+     public void openHorseInventory(EntityHorseAbstract entityhorseabstract, IInventory iinventory) {
++        // CraftBukkit start - Inventory open hook
++        this.nextContainerCounter();
++        Container container = new ContainerHorse(this.containerCounter, this.getInventory(), iinventory, entityhorseabstract);
++        container.setTitle(entityhorseabstract.getScoreboardDisplayName());
++        container = CraftEventFactory.callInventoryOpenEvent(this, container);
++
++        if (container == null) {
++            iinventory.closeContainer(this);
++            return;
++        }
++        // CraftBukkit end
+         if (this.containerMenu != this.inventoryMenu) {
+             this.closeInventory();
+         }
+ 
+-        this.nextContainerCounter();
++        // this.nextContainerCounter(); // CraftBukkit - moved up
+         this.connection.sendPacket(new PacketPlayOutOpenWindowHorse(this.containerCounter, iinventory.getSize(), entityhorseabstract.getId()));
+-        this.containerMenu = new ContainerHorse(this.containerCounter, this.getInventory(), iinventory, entityhorseabstract);
++        this.containerMenu = container; // CraftBukkit
+         this.initMenu(this.containerMenu);
+     }
+ 
+@@ -1072,6 +1420,7 @@
+ 
+     @Override
+     public void closeInventory() {
++        CraftEventFactory.handleInventoryCloseEvent(this); // CraftBukkit
+         this.connection.sendPacket(new PacketPlayOutCloseWindow(this.containerMenu.containerId));
+         this.o();
+     }
+@@ -1101,7 +1450,7 @@
+     @Override
+     public void a(Statistic<?> statistic, int i) {
+         this.stats.b(this, statistic, i);
+-        this.getScoreboard().getObjectivesForCriteria(statistic, this.getName(), (scoreboardscore) -> {
++        this.level.getCraftServer().getScoreboardManager().getScoreboardScores(statistic, this.getName(), (scoreboardscore) -> { // CraftBukkit - Get our scores instead
+             scoreboardscore.addScore(i);
+         });
+     }
+@@ -1109,7 +1458,7 @@
+     @Override
+     public void a(Statistic<?> statistic) {
+         this.stats.setStatistic(this, statistic, 0);
+-        this.getScoreboard().getObjectivesForCriteria(statistic, this.getName(), ScoreboardScore::c);
++        this.level.getCraftServer().getScoreboardManager().getScoreboardScores(statistic, this.getName(), ScoreboardScore::c); // CraftBukkit - Get our scores instead
+     }
+ 
+     @Override
+@@ -1125,7 +1474,7 @@
+ 
+         for (int j = 0; j < i; ++j) {
+             MinecraftKey minecraftkey = aminecraftkey1[j];
+-            Optional optional = this.server.getCraftingManager().getRecipe(minecraftkey);
++            Optional<? extends IRecipe<?>> optional = this.server.getCraftingManager().getRecipe(minecraftkey); // CraftBukkit - decompile error
+ 
+             Objects.requireNonNull(list);
+             optional.ifPresent(list::add);
+@@ -1160,7 +1509,16 @@
+ 
+     public void triggerHealthUpdate() {
+         this.lastSentHealth = -1.0E8F;
++        this.lastSentExp = -1; // CraftBukkit - Added to reset
++    }
++
++    // CraftBukkit start - Support multi-line messages
++    public void sendMessage(UUID uuid, IChatBaseComponent[] ichatbasecomponent) {
++        for (IChatBaseComponent component : ichatbasecomponent) {
++            this.sendMessage(component, (uuid == null) ? SystemUtils.NIL_UUID : uuid);
++        }
+     }
++    // CraftBukkit end
+ 
+     @Override
+     public void a(IChatBaseComponent ichatbasecomponent, boolean flag) {
+@@ -1215,11 +1573,12 @@
+         this.lastSentExp = -1;
+         this.lastSentHealth = -1.0F;
+         this.lastSentFood = -1;
+-        this.recipeBook.a((RecipeBook) entityplayer.recipeBook);
++        // this.recipeBook.a((RecipeBook) entityplayer.recipeBook); // CraftBukkit
+         this.seenCredits = entityplayer.seenCredits;
+         this.enteredNetherPosition = entityplayer.enteredNetherPosition;
+         this.setShoulderEntityLeft(entityplayer.getShoulderEntityLeft());
+         this.setShoulderEntityRight(entityplayer.getShoulderEntityRight());
++
+     }
+ 
+     @Override
+@@ -1341,7 +1700,20 @@
+         return s;
+     }
+ 
++    public String locale = "en_us"; // CraftBukkit - add, lowercase
+     public void a(PacketPlayInSettings packetplayinsettings) {
++        // CraftBukkit start
++        if (getMainHand() != packetplayinsettings.getMainHand()) {
++            PlayerChangedMainHandEvent event = new PlayerChangedMainHandEvent(getBukkitEntity(), getMainHand() == EnumMainHand.LEFT ? MainHand.LEFT : MainHand.RIGHT);
++            this.server.server.getPluginManager().callEvent(event);
++        }
++        if (!this.locale.equals(packetplayinsettings.language)) {
++            PlayerLocaleChangeEvent event = new PlayerLocaleChangeEvent(getBukkitEntity(), packetplayinsettings.language);
++            this.server.server.getPluginManager().callEvent(event);
++        }
++        this.locale = packetplayinsettings.language;
++        this.clientViewDistance = packetplayinsettings.viewDistance;
++        // CraftBukkit end
+         this.chatVisibility = packetplayinsettings.d();
+         this.canChatColor = packetplayinsettings.e();
+         this.textFilteringEnabled = packetplayinsettings.h();
+@@ -1411,7 +1783,7 @@
+         this.camera = (Entity) (entity == null ? this : entity);
+         if (entity1 != this.camera) {
+             this.connection.sendPacket(new PacketPlayOutCamera(this.camera));
+-            this.enderTeleportTo(this.camera.locX(), this.camera.locY(), this.camera.locZ());
++            this.connection.b(this.camera.locX(), this.camera.locY(), this.camera.locZ(), this.getYRot(), this.getXRot(), TeleportCause.SPECTATE); // CraftBukkit
+         }
+ 
+     }
+@@ -1440,7 +1812,7 @@
+ 
+     @Nullable
+     public IChatBaseComponent getPlayerListName() {
+-        return null;
++        return listName; // CraftBukkit
+     }
+ 
+     @Override
+@@ -1461,9 +1833,16 @@
+         return this.advancements;
+     }
+ 
++    // CraftBukkit start
+     public void a(WorldServer worldserver, double d0, double d1, double d2, float f, float f1) {
++        this.a(worldserver, d0, d1, d2, f, f1, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.UNKNOWN);
++    }
++
++    public void a(WorldServer worldserver, double d0, double d1, double d2, float f, float f1, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause cause) {
++        // CraftBukkit end
+         this.setSpectatorTarget(this);
+         this.stopRiding();
++        /* CraftBukkit start - replace with bukkit handling for multi-world
+         if (worldserver == this.level) {
+             this.connection.b(d0, d1, d2, f, f1);
+         } else {
+@@ -1483,6 +1862,9 @@
+             this.server.getPlayerList().a(this, worldserver);
+             this.server.getPlayerList().updateClient(this);
+         }
++        */
++        this.getBukkitEntity().teleport(new Location(worldserver.getWorld(), d0, d1, d2, f, f1), cause);
++        // CraftBukkit end
+ 
+     }
+ 
+@@ -1628,4 +2010,144 @@
+         CriterionTriggers.USING_ITEM.a(this, itemstack);
+         super.a(itemstack);
+     }
++
++    // CraftBukkit start - Add per-player time and weather.
++    public long timeOffset = 0;
++    public boolean relativeTime = true;
++
++    public long getPlayerTime() {
++        if (this.relativeTime) {
++            // Adds timeOffset to the current server time.
++            return this.level.getDayTime() + this.timeOffset;
++        } else {
++            // Adds timeOffset to the beginning of this day.
++            return this.level.getDayTime() - (this.level.getDayTime() % 24000) + this.timeOffset;
++        }
++    }
++
++    public WeatherType weather = null;
++
++    public WeatherType getPlayerWeather() {
++        return this.weather;
++    }
++
++    public void setPlayerWeather(WeatherType type, boolean plugin) {
++        if (!plugin && this.weather != null) {
++            return;
++        }
++
++        if (plugin) {
++            this.weather = type;
++        }
++
++        if (type == WeatherType.DOWNFALL) {
++            this.connection.sendPacket(new PacketPlayOutGameStateChange(PacketPlayOutGameStateChange.STOP_RAINING, 0));
++        } else {
++            this.connection.sendPacket(new PacketPlayOutGameStateChange(PacketPlayOutGameStateChange.START_RAINING, 0));
++        }
++    }
++
++    private float pluginRainPosition;
++    private float pluginRainPositionPrevious;
++
++    public void updateWeather(float oldRain, float newRain, float oldThunder, float newThunder) {
++        if (this.weather == null) {
++            // Vanilla
++            if (oldRain != newRain) {
++                this.connection.sendPacket(new PacketPlayOutGameStateChange(PacketPlayOutGameStateChange.RAIN_LEVEL_CHANGE, newRain));
++            }
++        } else {
++            // Plugin
++            if (pluginRainPositionPrevious != pluginRainPosition) {
++                this.connection.sendPacket(new PacketPlayOutGameStateChange(PacketPlayOutGameStateChange.RAIN_LEVEL_CHANGE, pluginRainPosition));
++            }
++        }
++
++        if (oldThunder != newThunder) {
++            if (weather == WeatherType.DOWNFALL || weather == null) {
++                this.connection.sendPacket(new PacketPlayOutGameStateChange(PacketPlayOutGameStateChange.THUNDER_LEVEL_CHANGE, newThunder));
++            } else {
++                this.connection.sendPacket(new PacketPlayOutGameStateChange(PacketPlayOutGameStateChange.THUNDER_LEVEL_CHANGE, 0));
++            }
++        }
++    }
++
++    public void tickWeather() {
++        if (this.weather == null) return;
++
++        pluginRainPositionPrevious = pluginRainPosition;
++        if (weather == WeatherType.DOWNFALL) {
++            pluginRainPosition += 0.01;
++        } else {
++            pluginRainPosition -= 0.01;
++        }
++
++        pluginRainPosition = MathHelper.a(pluginRainPosition, 0.0F, 1.0F);
++    }
++
++    public void resetPlayerWeather() {
++        this.weather = null;
++        this.setPlayerWeather(this.level.getWorldData().hasStorm() ? WeatherType.DOWNFALL : WeatherType.CLEAR, false);
++    }
++
++    @Override
++    public String toString() {
++        return super.toString() + "(" + this.getName() + " at " + this.locX() + "," + this.locY() + "," + this.locZ() + ")";
++    }
++
++    // SPIGOT-1903, MC-98153
++    public void forceSetPositionRotation(double x, double y, double z, float yaw, float pitch) {
++        this.setPositionRotation(x, y, z, yaw, pitch);
++        this.connection.syncPosition();
++    }
++
++    @Override
++    public boolean isFrozen() {
++        return super.isFrozen() || !getBukkitEntity().isOnline();
++    }
++
++    @Override
++    public Scoreboard getScoreboard() {
++        return getBukkitEntity().getScoreboard().getHandle();
++    }
++
++    public void reset() {
++        float exp = 0;
++        boolean keepInventory = this.level.getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY);
++
++        if (this.keepLevel || keepInventory) {
++            exp = this.experienceProgress;
++            this.newTotalExp = this.totalExperience;
++            this.newLevel = this.experienceLevel;
++        }
++
++        this.setHealth(this.getMaxHealth());
++        this.remainingFireTicks = 0;
++        this.fallDistance = 0;
++        this.foodData = new FoodMetaData(this);
++        this.experienceLevel = this.newLevel;
++        this.totalExperience = this.newTotalExp;
++        this.experienceProgress = 0;
++        this.deathTime = 0;
++        this.setArrowCount(0, true); // CraftBukkit - ArrowBodyCountChangeEvent
++        this.removeAllEffects(org.bukkit.event.entity.EntityPotionEffectEvent.Cause.DEATH);
++        this.effectsDirty = true;
++        this.containerMenu = this.inventoryMenu;
++        this.lastHurtByPlayer = null;
++        this.lastHurtByMob = null;
++        this.combatTracker = new CombatTracker(this);
++        this.lastSentExp = -1;
++        if (this.keepLevel || keepInventory) {
++            this.experienceProgress = exp;
++        } else {
++            this.giveExp(this.newExp);
++        }
++        this.keepLevel = false;
++    }
++
++    @Override
++    public CraftPlayer getBukkitEntity() {
++        return (CraftPlayer) super.getBukkitEntity();
++    }
++    // CraftBukkit end
+ }

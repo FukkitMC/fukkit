@@ -1,0 +1,686 @@
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -166,6 +166,25 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
++// CraftBukkit start
++import com.mojang.serialization.DynamicOps;
++import com.mojang.serialization.Lifecycle;
++import com.google.common.collect.ImmutableSet;
++import jline.console.ConsoleReader;
++import joptsimple.OptionSet;
++import net.minecraft.nbt.DynamicOpsNBT;
++import net.minecraft.nbt.NBTBase;
++import net.minecraft.resources.RegistryReadOps;
++import net.minecraft.server.dedicated.DedicatedServer;
++import net.minecraft.server.dedicated.DedicatedServerProperties;
++import net.minecraft.util.datafix.DataConverterRegistry;
++import net.minecraft.world.level.storage.WorldDataServer;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.CraftServer;
++import org.bukkit.craftbukkit.Main;
++import org.bukkit.event.server.ServerLoadEvent;
++// CraftBukkit end
++
+ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTask> implements IMojangStatistics, ICommandListener, AutoCloseable {
+ 
+     public static final Logger LOGGER = LogManager.getLogger();
+@@ -258,6 +277,20 @@
+     private final DefinedStructureManager structureManager;
+     protected SaveData worldData;
+ 
++    // CraftBukkit start
++    public DataPackConfiguration datapackconfiguration;
++    public org.bukkit.craftbukkit.CraftServer server;
++    public OptionSet options;
++    public org.bukkit.command.ConsoleCommandSender console;
++    public org.bukkit.command.RemoteConsoleCommandSender remoteConsole;
++    public ConsoleReader reader;
++    public static int currentTick = (int) (System.currentTimeMillis() / 50);
++    public java.util.Queue<Runnable> processQueue = new java.util.concurrent.ConcurrentLinkedQueue<Runnable>();
++    public int autosavePeriod;
++    public CommandDispatcher vanillaCommandDispatcher;
++    private boolean forceTicks;
++    // CraftBukkit end
++
+     public static <S extends MinecraftServer> S a(Function<Thread, S> function) {
+         AtomicReference<S> atomicreference = new AtomicReference();
+         Thread thread = new Thread(() -> {
+@@ -267,14 +300,14 @@
+         thread.setUncaughtExceptionHandler((thread1, throwable) -> {
+             MinecraftServer.LOGGER.error(throwable);
+         });
+-        S s0 = (MinecraftServer) function.apply(thread);
++        S s0 = function.apply(thread); // CraftBukkit - decompile error
+ 
+         atomicreference.set(s0);
+         thread.start();
+         return s0;
+     }
+ 
+-    public MinecraftServer(Thread thread, IRegistryCustom.Dimension iregistrycustom_dimension, Convertable.ConversionSession convertable_conversionsession, SaveData savedata, ResourcePackRepository resourcepackrepository, Proxy proxy, DataFixer datafixer, DataPackResources datapackresources, @Nullable MinecraftSessionService minecraftsessionservice, @Nullable GameProfileRepository gameprofilerepository, @Nullable UserCache usercache, WorldLoadListenerFactory worldloadlistenerfactory) {
++    public MinecraftServer(OptionSet options, DataPackConfiguration datapackconfiguration, Thread thread, IRegistryCustom.Dimension iregistrycustom_dimension, Convertable.ConversionSession convertable_conversionsession, SaveData savedata, ResourcePackRepository resourcepackrepository, Proxy proxy, DataFixer datafixer, DataPackResources datapackresources, @Nullable MinecraftSessionService minecraftsessionservice, @Nullable GameProfileRepository gameprofilerepository, @Nullable UserCache usercache, WorldLoadListenerFactory worldloadlistenerfactory) {
+         super("Server");
+         this.metricsRecorder = InactiveMetricsRecorder.INSTANCE;
+         this.profiler = this.metricsRecorder.e();
+@@ -286,7 +319,7 @@
+         this.status = new ServerPing();
+         this.random = new Random();
+         this.port = -1;
+-        this.levels = Maps.newLinkedHashMap();
++        this.levels = Maps.newLinkedHashMap(); // CraftBukkit - keep order, k+v already use identity methods
+         this.running = true;
+         this.tickTimes = new long[100];
+         this.resourcePack = "";
+@@ -316,13 +349,40 @@
+         this.structureManager = new DefinedStructureManager(datapackresources.i(), convertable_conversionsession, datafixer);
+         this.serverThread = thread;
+         this.executor = SystemUtils.f();
++        // CraftBukkit start
++        this.options = options;
++        this.datapackconfiguration = datapackconfiguration;
++        this.vanillaCommandDispatcher = datapackresources.commands; // CraftBukkit
++        // Try to see if we're actually running in a terminal, disable jline if not
++        if (System.console() == null && System.getProperty("jline.terminal") == null) {
++            System.setProperty("jline.terminal", "jline.UnsupportedTerminal");
++            Main.useJline = false;
++        }
++
++        try {
++            reader = new ConsoleReader(System.in, System.out);
++            reader.setExpandEvents(false); // Avoid parsing exceptions for uncommonly used event designators
++        } catch (Throwable e) {
++            try {
++                // Try again with jline disabled for Windows users without C++ 2008 Redistributable
++                System.setProperty("jline.terminal", "jline.UnsupportedTerminal");
++                System.setProperty("user.language", "en");
++                Main.useJline = false;
++                reader = new ConsoleReader(System.in, System.out);
++                reader.setExpandEvents(false);
++            } catch (IOException ex) {
++                LOGGER.warn((String) null, ex);
++            }
++        }
++        Runtime.getRuntime().addShutdownHook(new org.bukkit.craftbukkit.util.ServerShutdownThread(this));
+     }
++    // CraftBukkit end
+ 
+     private void initializeScoreboards(WorldPersistentData worldpersistentdata) {
+         ScoreboardServer scoreboardserver = this.getScoreboard();
+ 
+         Objects.requireNonNull(scoreboardserver);
+-        Function function = scoreboardserver::a;
++        Function<net.minecraft.nbt.NBTTagCompound, net.minecraft.world.scores.PersistentScoreboard> function = scoreboardserver::a; // CraftBukkit - decompile error
+         ScoreboardServer scoreboardserver1 = this.getScoreboard();
+ 
+         Objects.requireNonNull(scoreboardserver1);
+@@ -333,7 +393,7 @@
+ 
+     public static void convertWorld(Convertable.ConversionSession convertable_conversionsession) {
+         if (convertable_conversionsession.isConvertable()) {
+-            MinecraftServer.LOGGER.info("Converting map!");
++            MinecraftServer.LOGGER.info("Converting map! {}", convertable_conversionsession.getLevelName()); // CraftBukkit
+             convertable_conversionsession.convert(new IProgressUpdate() {
+                 private long timeStamp = SystemUtils.getMonotonicMillis();
+ 
+@@ -362,48 +422,198 @@
+ 
+     }
+ 
+-    protected void loadWorld() {
+-        this.loadResourcesZip();
+-        this.worldData.a(this.getServerModName(), this.getModded().isPresent());
+-        WorldLoadListener worldloadlistener = this.progressListenerFactory.create(11);
++    protected void loadWorld(String s) {
++        // CraftBukkit start
++        Convertable.ConversionSession worldSession = this.storageSource;
++        IRegistryCustom.Dimension iregistrycustom_dimension = this.registryHolder;
++        RegistryReadOps<NBTBase> registryreadops = RegistryReadOps.a((DynamicOps) DynamicOpsNBT.INSTANCE, this.resources.i(), (IRegistryCustom) iregistrycustom_dimension);
++        WorldDataServer overworldData = (WorldDataServer) worldSession.a((DynamicOps) registryreadops, datapackconfiguration);
++        if (overworldData == null) {
++            WorldSettings worldsettings;
++            GeneratorSettings generatorsettings;
++
++            if (this.isDemoMode()) {
++                worldsettings = MinecraftServer.DEMO_SETTINGS;
++                generatorsettings = GeneratorSettings.a((IRegistryCustom) iregistrycustom_dimension);
++            } else {
++                DedicatedServerProperties dedicatedserverproperties = ((DedicatedServer) this).getDedicatedServerProperties();
++
++                worldsettings = new WorldSettings(dedicatedserverproperties.levelName, dedicatedserverproperties.gamemode, dedicatedserverproperties.hardcore, dedicatedserverproperties.difficulty, false, new GameRules(), datapackconfiguration);
++                generatorsettings = options.has("bonusChest") ? dedicatedserverproperties.a((IRegistryCustom) iregistrycustom_dimension).j() : dedicatedserverproperties.a((IRegistryCustom) iregistrycustom_dimension);
++            }
++
++            overworldData = new WorldDataServer(worldsettings, generatorsettings, Lifecycle.stable());
++        }
+ 
+-        this.a(worldloadlistener);
++        GeneratorSettings overworldSettings = overworldData.getGeneratorSettings();
++        RegistryMaterials<WorldDimension> registrymaterials = overworldSettings.d();
++        for (Entry<ResourceKey<WorldDimension>, WorldDimension> entry : registrymaterials.d()) {
++            ResourceKey<WorldDimension> dimensionKey = entry.getKey();
++
++            WorldServer world;
++            int dimension = 0;
++
++            if (dimensionKey == WorldDimension.NETHER) {
++                if (getAllowNether()) {
++                    dimension = -1;
++                } else {
++                    continue;
++                }
++            } else if (dimensionKey == WorldDimension.END) {
++                if (server.getAllowEnd()) {
++                    dimension = 1;
++                } else {
++                    continue;
++                }
++            } else if (dimensionKey != WorldDimension.OVERWORLD) {
++                dimension = -999;
++            }
++
++            String worldType = (dimension == -999) ? dimensionKey.a().getNamespace() + "_" + dimensionKey.a().getKey() : org.bukkit.World.Environment.getEnvironment(dimension).toString().toLowerCase();
++            String name = (dimensionKey == WorldDimension.OVERWORLD) ? s : s + "_" + worldType;
++            if (dimension != 0) {
++                File newWorld = Convertable.getFolder(new File(name), dimensionKey);
++                File oldWorld = Convertable.getFolder(new File(s), dimensionKey);
++                File oldLevelDat = new File(new File(s), "level.dat"); // The data folders exist on first run as they are created in the PersistentCollection constructor above, but the level.dat won't
++
++                if (!newWorld.isDirectory() && oldWorld.isDirectory() && oldLevelDat.isFile()) {
++                    MinecraftServer.LOGGER.info("---- Migration of old " + worldType + " folder required ----");
++                    MinecraftServer.LOGGER.info("Unfortunately due to the way that Minecraft implemented multiworld support in 1.6, Bukkit requires that you move your " + worldType + " folder to a new location in order to operate correctly.");
++                    MinecraftServer.LOGGER.info("We will move this folder for you, but it will mean that you need to move it back should you wish to stop using Bukkit in the future.");
++                    MinecraftServer.LOGGER.info("Attempting to move " + oldWorld + " to " + newWorld + "...");
++
++                    if (newWorld.exists()) {
++                        MinecraftServer.LOGGER.warn("A file or folder already exists at " + newWorld + "!");
++                        MinecraftServer.LOGGER.info("---- Migration of old " + worldType + " folder failed ----");
++                    } else if (newWorld.getParentFile().mkdirs()) {
++                        if (oldWorld.renameTo(newWorld)) {
++                            MinecraftServer.LOGGER.info("Success! To restore " + worldType + " in the future, simply move " + newWorld + " to " + oldWorld);
++                            // Migrate world data too.
++                            try {
++                                com.google.common.io.Files.copy(oldLevelDat, new File(new File(name), "level.dat"));
++                                org.apache.commons.io.FileUtils.copyDirectory(new File(new File(s), "data"), new File(new File(name), "data"));
++                            } catch (IOException exception) {
++                                MinecraftServer.LOGGER.warn("Unable to migrate world data.");
++                            }
++                            MinecraftServer.LOGGER.info("---- Migration of old " + worldType + " folder complete ----");
++                        } else {
++                            MinecraftServer.LOGGER.warn("Could not move folder " + oldWorld + " to " + newWorld + "!");
++                            MinecraftServer.LOGGER.info("---- Migration of old " + worldType + " folder failed ----");
++                        }
++                    } else {
++                        MinecraftServer.LOGGER.warn("Could not create path for " + newWorld + "!");
++                        MinecraftServer.LOGGER.info("---- Migration of old " + worldType + " folder failed ----");
++                    }
++                }
++
++                try {
++                    worldSession = Convertable.a(server.getWorldContainer().toPath()).c(name, dimensionKey);
++                } catch (IOException ex) {
++                    throw new RuntimeException(ex);
++                }
++                MinecraftServer.convertWorld(worldSession); // Run conversion now
++            }
++
++            org.bukkit.generator.ChunkGenerator gen = this.server.getGenerator(name);
++
++            WorldDataServer worlddata = (WorldDataServer) worldSession.a((DynamicOps) registryreadops, datapackconfiguration);
++            if (worlddata == null) {
++                WorldSettings worldsettings;
++                GeneratorSettings generatorsettings;
++
++                if (this.isDemoMode()) {
++                    worldsettings = MinecraftServer.DEMO_SETTINGS;
++                    generatorsettings = GeneratorSettings.a((IRegistryCustom) iregistrycustom_dimension);
++                } else {
++                    DedicatedServerProperties dedicatedserverproperties = ((DedicatedServer) this).getDedicatedServerProperties();
++
++                    worldsettings = new WorldSettings(dedicatedserverproperties.levelName, dedicatedserverproperties.gamemode, dedicatedserverproperties.hardcore, dedicatedserverproperties.difficulty, false, new GameRules(), datapackconfiguration);
++                    generatorsettings = options.has("bonusChest") ? dedicatedserverproperties.a((IRegistryCustom) iregistrycustom_dimension).j() : dedicatedserverproperties.a((IRegistryCustom) iregistrycustom_dimension);
++                }
++
++                worlddata = new WorldDataServer(worldsettings, generatorsettings, Lifecycle.stable());
++            }
++            worlddata.checkName(name); // CraftBukkit - Migration did not rewrite the level.dat; This forces 1.8 to take the last loaded world as respawn (in this case the end)
++            if (options.has("forceUpgrade")) {
++                net.minecraft.server.Main.convertWorld(worldSession, DataConverterRegistry.a(), options.has("eraseCache"), () -> {
++                    return true;
++                }, worlddata.getGeneratorSettings().d().d().stream().map((entry1) -> {
++                    return ResourceKey.a(IRegistry.DIMENSION_TYPE_REGISTRY, ((ResourceKey) entry1.getKey()).a());
++                }).collect(ImmutableSet.toImmutableSet()));
++            }
++
++            IWorldDataServer iworlddataserver = worlddata;
++            GeneratorSettings generatorsettings = worlddata.getGeneratorSettings();
++            boolean flag = generatorsettings.isDebugWorld();
++            long i = generatorsettings.getSeed();
++            long j = BiomeManager.a(i);
++            List<MobSpawner> list = ImmutableList.of(new MobSpawnerPhantom(), new MobSpawnerPatrol(), new MobSpawnerCat(), new VillageSiege(), new MobSpawnerTrader(iworlddataserver));
++            WorldDimension worlddimension = (WorldDimension) registrymaterials.a(dimensionKey);
++            DimensionManager dimensionmanager;
++            ChunkGenerator chunkgenerator;
++
++            if (worlddimension == null) {
++                dimensionmanager = (DimensionManager) this.registryHolder.d(IRegistry.DIMENSION_TYPE_REGISTRY).d(DimensionManager.OVERWORLD_LOCATION);
++                chunkgenerator = GeneratorSettings.a(this.registryHolder.d(IRegistry.BIOME_REGISTRY), this.registryHolder.d(IRegistry.NOISE_GENERATOR_SETTINGS_REGISTRY), (new Random()).nextLong());
++            } else {
++                dimensionmanager = worlddimension.b();
++                chunkgenerator = worlddimension.c();
++            }
++
++            ResourceKey<World> worldKey = ResourceKey.a(IRegistry.DIMENSION_REGISTRY, dimensionKey.a());
++
++            if (dimensionKey == WorldDimension.OVERWORLD) {
++                this.worldData = worlddata;
++                this.worldData.setGameType(((DedicatedServer) this).getDedicatedServerProperties().gamemode); // From DedicatedServer.init
++
++                WorldLoadListener worldloadlistener = this.progressListenerFactory.create(11);
++
++                world = new WorldServer(this, this.executor, worldSession, iworlddataserver, worldKey, dimensionmanager, worldloadlistener, chunkgenerator, flag, j, list, true, org.bukkit.World.Environment.getEnvironment(dimension), gen);
++                WorldPersistentData worldpersistentdata = world.getWorldPersistentData();
++                this.initializeScoreboards(worldpersistentdata);
++                this.server.scoreboardManager = new org.bukkit.craftbukkit.scoreboard.CraftScoreboardManager(this, world.getScoreboard());
++                this.commandStorage = new PersistentCommandStorage(worldpersistentdata);
++            } else {
++                WorldLoadListener worldloadlistener = this.progressListenerFactory.create(11);
++                world = new WorldServer(this, this.executor, worldSession, iworlddataserver, worldKey, dimensionmanager, worldloadlistener, chunkgenerator, flag, j, ImmutableList.of(), true, org.bukkit.World.Environment.getEnvironment(dimension), gen);
++            }
++
++            worlddata.a(this.getServerModName(), this.getModded().isPresent());
++            this.initWorld(world, worlddata, worldData, worlddata.getGeneratorSettings());
++
++            this.levels.put(world.getDimensionKey(), world);
++            this.getPlayerList().setPlayerFileData(world);
++
++            if (worlddata.getCustomBossEvents() != null) {
++                this.getBossBattleCustomData().load(worlddata.getCustomBossEvents());
++            }
++        }
+         this.updateWorldSettings();
+-        this.loadSpawn(worldloadlistener);
++        for (WorldServer worldserver : this.getWorlds()) {
++            this.loadSpawn(worldserver.getChunkProvider().chunkMap.progressListener, worldserver);
++            worldserver.entityManager.a(); // SPIGOT-6526: Load pending entities so they are available to the API
++            this.server.getPluginManager().callEvent(new org.bukkit.event.world.WorldLoadEvent(worldserver.getWorld()));
++        }
++
++        this.server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.POSTWORLD);
++        this.server.getPluginManager().callEvent(new ServerLoadEvent(ServerLoadEvent.LoadType.STARTUP));
++        this.connection.acceptConnections();
++        // CraftBukkit end
+     }
+ 
+     protected void updateWorldSettings() {}
+ 
+-    protected void a(WorldLoadListener worldloadlistener) {
+-        IWorldDataServer iworlddataserver = this.worldData.H();
+-        GeneratorSettings generatorsettings = this.worldData.getGeneratorSettings();
++    // CraftBukkit start
++    public void initWorld(WorldServer worldserver, IWorldDataServer iworlddataserver, SaveData saveData, GeneratorSettings generatorsettings) {
+         boolean flag = generatorsettings.isDebugWorld();
+-        long i = generatorsettings.getSeed();
+-        long j = BiomeManager.a(i);
+-        List<MobSpawner> list = ImmutableList.of(new MobSpawnerPhantom(), new MobSpawnerPatrol(), new MobSpawnerCat(), new VillageSiege(), new MobSpawnerTrader(iworlddataserver));
+-        RegistryMaterials<WorldDimension> registrymaterials = generatorsettings.d();
+-        WorldDimension worlddimension = (WorldDimension) registrymaterials.a(WorldDimension.OVERWORLD);
+-        DimensionManager dimensionmanager;
+-        Object object;
+-
+-        if (worlddimension == null) {
+-            dimensionmanager = (DimensionManager) this.registryHolder.d(IRegistry.DIMENSION_TYPE_REGISTRY).d(DimensionManager.OVERWORLD_LOCATION);
+-            object = GeneratorSettings.a(this.registryHolder.d(IRegistry.BIOME_REGISTRY), this.registryHolder.d(IRegistry.NOISE_GENERATOR_SETTINGS_REGISTRY), (new Random()).nextLong());
+-        } else {
+-            dimensionmanager = worlddimension.b();
+-            object = worlddimension.c();
++        // CraftBukkit start
++        if (worldserver.generator != null) {
++            worldserver.getWorld().getPopulators().addAll(worldserver.generator.getDefaultPopulators(worldserver.getWorld()));
+         }
+-
+-        WorldServer worldserver = new WorldServer(this, this.executor, this.storageSource, iworlddataserver, World.OVERWORLD, dimensionmanager, worldloadlistener, (ChunkGenerator) object, flag, j, list, true);
+-
+-        this.levels.put(World.OVERWORLD, worldserver);
+-        WorldPersistentData worldpersistentdata = worldserver.getWorldPersistentData();
+-
+-        this.initializeScoreboards(worldpersistentdata);
+-        this.commandStorage = new PersistentCommandStorage(worldpersistentdata);
+         WorldBorder worldborder = worldserver.getWorldBorder();
+ 
+         worldborder.a(iworlddataserver.r());
++        this.server.getPluginManager().callEvent(new org.bukkit.event.world.WorldInitEvent(worldserver.getWorld())); // CraftBukkit - SPIGOT-5569
+         if (!iworlddataserver.p()) {
+             try {
+                 a(worldserver, iworlddataserver, generatorsettings.c(), flag);
+@@ -425,31 +635,8 @@
+ 
+             iworlddataserver.c(true);
+         }
+-
+-        this.getPlayerList().setPlayerFileData(worldserver);
+-        if (this.worldData.getCustomBossEvents() != null) {
+-            this.getBossBattleCustomData().load(this.worldData.getCustomBossEvents());
+-        }
+-
+-        Iterator iterator = registrymaterials.d().iterator();
+-
+-        while (iterator.hasNext()) {
+-            Entry<ResourceKey<WorldDimension>, WorldDimension> entry = (Entry) iterator.next();
+-            ResourceKey<WorldDimension> resourcekey = (ResourceKey) entry.getKey();
+-
+-            if (resourcekey != WorldDimension.OVERWORLD) {
+-                ResourceKey<World> resourcekey1 = ResourceKey.a(IRegistry.DIMENSION_REGISTRY, resourcekey.a());
+-                DimensionManager dimensionmanager1 = ((WorldDimension) entry.getValue()).b();
+-                ChunkGenerator chunkgenerator = ((WorldDimension) entry.getValue()).c();
+-                SecondaryWorldData secondaryworlddata = new SecondaryWorldData(this.worldData, iworlddataserver);
+-                WorldServer worldserver1 = new WorldServer(this, this.executor, this.storageSource, secondaryworlddata, resourcekey1, dimensionmanager1, worldloadlistener, chunkgenerator, flag, j, ImmutableList.of(), false);
+-
+-                worldborder.a((IWorldBorderListener) (new IWorldBorderListener.a(worldserver1.getWorldBorder())));
+-                this.levels.put(resourcekey1, worldserver1);
+-            }
+-        }
+-
+     }
++    // CraftBukkit end
+ 
+     private static void a(WorldServer worldserver, IWorldDataServer iworlddataserver, boolean flag, boolean flag1) {
+         if (flag1) {
+@@ -462,6 +649,21 @@
+                 return biomebase.b().b();
+             }, random);
+             ChunkCoordIntPair chunkcoordintpair = blockposition == null ? new ChunkCoordIntPair(0, 0) : new ChunkCoordIntPair(blockposition);
++            // CraftBukkit start
++            if (worldserver.generator != null) {
++                Random rand = new Random(worldserver.getSeed());
++                org.bukkit.Location spawn = worldserver.generator.getFixedSpawnLocation(worldserver.getWorld(), rand);
++
++                if (spawn != null) {
++                    if (spawn.getWorld() != worldserver.getWorld()) {
++                        throw new IllegalStateException("Cannot set spawn point for " + iworlddataserver.getName() + " to be in another world (" + spawn.getWorld().getName() + ")");
++                    } else {
++                        iworlddataserver.setSpawn(new BlockPosition(spawn.getBlockX(), spawn.getBlockY(), spawn.getBlockZ()), spawn.getYaw());
++                        return;
++                    }
++                }
++            }
++            // CraftBukkit end
+ 
+             if (blockposition == null) {
+                 MinecraftServer.LOGGER.warn("Unable to find spawn biome");
+@@ -536,8 +738,15 @@
+         iworlddataserver.setGameType(EnumGamemode.SPECTATOR);
+     }
+ 
+-    public void loadSpawn(WorldLoadListener worldloadlistener) {
+-        WorldServer worldserver = this.F();
++    // CraftBukkit start
++    public void loadSpawn(WorldLoadListener worldloadlistener, WorldServer worldserver) {
++        if (!worldserver.getWorld().getKeepSpawnInMemory()) {
++            return;
++        }
++
++        // WorldServer worldserver = this.F();
++        this.forceTicks = true;
++        // CraftBukkit end
+ 
+         MinecraftServer.LOGGER.info("Preparing start region for dimension {}", worldserver.getDimensionKey().a());
+         BlockPosition blockposition = worldserver.getSpawn();
+@@ -550,16 +759,20 @@
+         chunkproviderserver.addTicket(TicketType.START, new ChunkCoordIntPair(blockposition), 11, Unit.INSTANCE);
+ 
+         while (chunkproviderserver.b() != 441) {
+-            this.nextTickTime = SystemUtils.getMonotonicMillis() + 10L;
+-            this.sleepForTick();
++            // CraftBukkit start
++            // this.nextTickTime = SystemUtils.getMonotonicMillis() + 10L;
++            this.executeModerately();
++            // CraftBukkit end
+         }
+ 
+-        this.nextTickTime = SystemUtils.getMonotonicMillis() + 10L;
+-        this.sleepForTick();
+-        Iterator iterator = this.levels.values().iterator();
+-
+-        while (iterator.hasNext()) {
+-            WorldServer worldserver1 = (WorldServer) iterator.next();
++        // CraftBukkit start
++        // this.nextTickTime = SystemUtils.getMonotonicMillis() + 10L;
++        this.executeModerately();
++        // Iterator iterator = this.worldServer.values().iterator();
++
++        if (true) {
++            WorldServer worldserver1 = worldserver;
++            // CraftBukkit end
+             ForcedChunk forcedchunk = (ForcedChunk) worldserver1.getWorldPersistentData().a(ForcedChunk::b, "chunks");
+ 
+             if (forcedchunk != null) {
+@@ -574,11 +787,18 @@
+             }
+         }
+ 
+-        this.nextTickTime = SystemUtils.getMonotonicMillis() + 10L;
+-        this.sleepForTick();
++        // CraftBukkit start
++        // this.nextTick = SystemUtils.getMonotonicMillis() + 10L;
++        this.executeModerately();
++        // CraftBukkit end
+         worldloadlistener.b();
+         chunkproviderserver.getLightEngine().a(5);
+-        this.updateSpawnFlags();
++        // CraftBukkit start
++        // this.updateSpawnFlags();
++        worldserver.setSpawnFlags(this.getSpawnMonsters(), this.getSpawnAnimals());
++
++        this.forceTicks = false;
++        // CraftBukkit end
+     }
+ 
+     protected void loadResourcesZip() {
+@@ -623,12 +843,16 @@
+             worldserver.save((IProgressUpdate) null, flag1, worldserver.noSave && !flag2);
+         }
+ 
++        // CraftBukkit start - moved to WorldServer.save
++        /*
+         WorldServer worldserver1 = this.F();
+         IWorldDataServer iworlddataserver = this.worldData.H();
+ 
+         iworlddataserver.a(worldserver1.getWorldBorder().t());
+         this.worldData.setCustomBossEvents(this.getBossBattleCustomData().save());
+         this.storageSource.a(this.registryHolder, this.worldData, this.getPlayerList().save());
++        */
++        // CraftBukkit end
+         return flag3;
+     }
+ 
+@@ -637,8 +861,29 @@
+         this.stop();
+     }
+ 
++    // CraftBukkit start
++    private boolean hasStopped = false;
++    private final Object stopLock = new Object();
++    public final boolean hasStopped() {
++        synchronized (stopLock) {
++            return hasStopped;
++        }
++    }
++    // CraftBukkit end
++
+     public void stop() {
++        // CraftBukkit start - prevent double stopping on multiple threads
++        synchronized(stopLock) {
++            if (hasStopped) return;
++            hasStopped = true;
++        }
++        // CraftBukkit end
+         MinecraftServer.LOGGER.info("Stopping server");
++        // CraftBukkit start
++        if (this.server != null) {
++            this.server.disablePlugins();
++        }
++        // CraftBukkit end
+         if (this.getServerConnection() != null) {
+             this.getServerConnection().b();
+         }
+@@ -647,6 +892,7 @@
+             MinecraftServer.LOGGER.info("Saving players");
+             this.playerList.savePlayers();
+             this.playerList.shutdown();
++            try { Thread.sleep(100); } catch (InterruptedException ex) {} // CraftBukkit - SPIGOT-625 - give server at least a chance to send packets
+         }
+ 
+         MinecraftServer.LOGGER.info("Saving worlds");
+@@ -724,9 +970,10 @@
+                 while (this.running) {
+                     long i = SystemUtils.getMonotonicMillis() - this.nextTickTime;
+ 
+-                    if (i > 2000L && this.nextTickTime - this.lastOverloadWarning >= 15000L) {
++                    if (i > 5000L && this.nextTickTime - this.lastOverloadWarning >= 30000L) { // CraftBukkit
+                         long j = i / 50L;
+ 
++                        if (server.getWarnOnOverload()) // CraftBukkit
+                         MinecraftServer.LOGGER.warn("Can't keep up! Is the server overloaded? Running {}ms or {} ticks behind", i, j);
+                         this.nextTickTime += j * 50L;
+                         this.lastOverloadWarning = this.nextTickTime;
+@@ -737,6 +984,7 @@
+                         this.debugCommandProfiler = new MinecraftServer.a(SystemUtils.getMonotonicNanos(), this.tickCount);
+                     }
+ 
++                    MinecraftServer.currentTick = (int) (System.currentTimeMillis() / 50); // CraftBukkit
+                     this.nextTickTime += 50L;
+                     this.bi();
+                     this.profiler.enter("tick");
+@@ -782,6 +1030,12 @@
+             } catch (Throwable throwable1) {
+                 MinecraftServer.LOGGER.error("Exception stopping the server", throwable1);
+             } finally {
++                // CraftBukkit start - Restore terminal to original settings
++                try {
++                    reader.getTerminal().restore();
++                } catch (Exception ignored) {
++                }
++                // CraftBukkit end
+                 this.exit();
+             }
+ 
+@@ -790,8 +1044,15 @@
+     }
+ 
+     private boolean canSleepForTick() {
+-        return this.isEntered() || SystemUtils.getMonotonicMillis() < (this.mayHaveDelayedTasks ? this.delayedTasksMaxNextTickTime : this.nextTickTime);
++        // CraftBukkit start
++        return this.forceTicks || this.isEntered() || SystemUtils.getMonotonicMillis() < (this.mayHaveDelayedTasks ? this.delayedTasksMaxNextTickTime : this.nextTickTime);
++    }
++
++    private void executeModerately() {
++        this.executeAll();
++        java.util.concurrent.locks.LockSupport.parkNanos("executing tasks", 1000L);
+     }
++    // CraftBukkit end
+ 
+     protected void sleepForTick() {
+         this.executeAll();
+@@ -906,7 +1167,7 @@
+             this.status.b().a(agameprofile);
+         }
+ 
+-        if (this.tickCount % 6000 == 0) {
++        if (autosavePeriod > 0 && this.tickCount % autosavePeriod == 0) { // CraftBukkit
+             MinecraftServer.LOGGER.debug("Autosave started");
+             this.profiler.enter("save");
+             this.playerList.savePlayers();
+@@ -936,22 +1197,39 @@
+     }
+ 
+     public void b(BooleanSupplier booleansupplier) {
++        this.server.getScheduler().mainThreadHeartbeat(this.tickCount); // CraftBukkit
+         this.profiler.enter("commandFunctions");
+         this.getFunctionData().tick();
+         this.profiler.exitEnter("levels");
+         Iterator iterator = this.getWorlds().iterator();
+ 
++        // CraftBukkit start
++        // Run tasks that are waiting on processing
++        while (!processQueue.isEmpty()) {
++            processQueue.remove().run();
++        }
++
++        // Send time updates to everyone, it will get the right time from the world the player is in.
++        if (this.tickCount % 20 == 0) {
++            for (int i = 0; i < this.getPlayerList().players.size(); ++i) {
++                EntityPlayer entityplayer = (EntityPlayer) this.getPlayerList().players.get(i);
++                entityplayer.connection.sendPacket(new PacketPlayOutUpdateTime(entityplayer.level.getTime(), entityplayer.getPlayerTime(), entityplayer.level.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT))); // Add support for per player time
++            }
++        }
++
+         while (iterator.hasNext()) {
+             WorldServer worldserver = (WorldServer) iterator.next();
+ 
+             this.profiler.a(() -> {
+                 return worldserver + " " + worldserver.getDimensionKey().a();
+             });
++            /* Drop global time updates
+             if (this.tickCount % 20 == 0) {
+                 this.profiler.enter("timeSync");
+                 this.playerList.a((Packet) (new PacketPlayOutUpdateTime(worldserver.getTime(), worldserver.getDayTime(), worldserver.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT))), worldserver.getDimensionKey());
+                 this.profiler.exit();
+             }
++            // CraftBukkit end */
+ 
+             this.profiler.enter("tick");
+ 
+@@ -1040,7 +1318,7 @@
+ 
+     @DontObfuscate
+     public String getServerModName() {
+-        return "vanilla";
++        return server.getName(); // CraftBukkit - cb > vanilla!
+     }
+ 
+     public SystemReport b(SystemReport systemreport) {
+@@ -1412,16 +1690,17 @@
+ 
+     public CompletableFuture<Void> a(Collection<String> collection) {
+         CompletableFuture<Void> completablefuture = CompletableFuture.supplyAsync(() -> {
+-            Stream stream = collection.stream();
++            Stream<String> stream = collection.stream(); // CraftBukkit - decompile error
+             ResourcePackRepository resourcepackrepository = this.packRepository;
+ 
+             Objects.requireNonNull(this.packRepository);
+-            return (ImmutableList) stream.map(resourcepackrepository::a).filter(Objects::nonNull).map(ResourcePackLoader::d).collect(ImmutableList.toImmutableList());
++            return stream.map(resourcepackrepository::a).filter(Objects::nonNull).map(ResourcePackLoader::d).collect(ImmutableList.toImmutableList()); // CraftBukkit - decompile error
+         }, this).thenCompose((immutablelist) -> {
+             return DataPackResources.a(immutablelist, this.registryHolder, this.k() ? CommandDispatcher.ServerType.DEDICATED : CommandDispatcher.ServerType.INTEGRATED, this.i(), this.executor, this);
+         }).thenAcceptAsync((datapackresources) -> {
+             this.resources.close();
+             this.resources = datapackresources;
++            this.server.syncCommands(); // SPIGOT-5884: Lost on reload
+             this.packRepository.a(collection);
+             this.worldData.a(a(this.packRepository));
+             datapackresources.j();
+@@ -1766,6 +2045,22 @@
+ 
+     }
+ 
++    // CraftBukkit start
++    @Override
++    public boolean isMainThread() {
++        return super.isMainThread() || this.isStopped(); // CraftBukkit - MC-142590
++    }
++
++    public boolean isDebugging() {
++        return false;
++    }
++
++    @Deprecated
++    public static MinecraftServer getServer() {
++        return (Bukkit.getServer() instanceof CraftServer) ? ((CraftServer) Bukkit.getServer()).getServer() : null;
++    }
++    // CraftBukkit end
++
+     private void bi() {
+         if (this.willStartRecordingMetrics) {
+             this.metricsRecorder = ActiveMetricsRecorder.a(new ServerMetricsSamplersProvider(SystemUtils.timeSource, this.k()), SystemUtils.timeSource, SystemUtils.g(), new MetricsPersister("server"), this.onMetricsRecordingStopped, (path) -> {

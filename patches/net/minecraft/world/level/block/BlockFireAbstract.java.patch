@@ -1,0 +1,48 @@
+--- a/net/minecraft/world/level/block/BlockFireAbstract.java
++++ b/net/minecraft/world/level/block/BlockFireAbstract.java
+@@ -125,7 +125,14 @@
+         if (!entity.isFireProof()) {
+             entity.setFireTicks(entity.getFireTicks() + 1);
+             if (entity.getFireTicks() == 0) {
+-                entity.setOnFire(8);
++                // CraftBukkit start
++                org.bukkit.event.entity.EntityCombustEvent event = new org.bukkit.event.entity.EntityCombustByBlockEvent(org.bukkit.craftbukkit.block.CraftBlock.at(world, blockposition), entity.getBukkitEntity(), 8);
++                world.getCraftServer().getPluginManager().callEvent(event);
++
++                if (!event.isCancelled()) {
++                    entity.setOnFire(event.getDuration(), false);
++                }
++                // CraftBukkit end
+             }
+ 
+             entity.damageEntity(DamageSource.IN_FIRE, this.fireDamage);
+@@ -147,14 +154,14 @@
+             }
+ 
+             if (!iblockdata.canPlace(world, blockposition)) {
+-                world.a(blockposition, false);
++                fireExtinguished(world, blockposition); // CraftBukkit - fuel block broke
+             }
+ 
+         }
+     }
+ 
+     private static boolean a(World world) {
+-        return world.getDimensionKey() == World.OVERWORLD || world.getDimensionKey() == World.NETHER;
++        return world.getTypeKey() == net.minecraft.world.level.dimension.DimensionManager.OVERWORLD_LOCATION || world.getTypeKey() == net.minecraft.world.level.dimension.DimensionManager.NETHER_LOCATION; // CraftBukkit - getTypeKey()
+     }
+ 
+     @Override
+@@ -202,4 +209,12 @@
+             }
+         }
+     }
++
++    // CraftBukkit start
++    protected void fireExtinguished(GeneratorAccess world, BlockPosition position) {
++        if (!org.bukkit.craftbukkit.event.CraftEventFactory.callBlockFadeEvent(world, position, Blocks.AIR.getBlockData()).isCancelled()) {
++            world.a(position, false);
++        }
++    }
++    // CraftBukkit end
+ }

@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/entity/ai/goal/target/PathfinderGoalOwnerHurtByTarget.java
++++ b/net/minecraft/world/entity/ai/goal/target/PathfinderGoalOwnerHurtByTarget.java
+@@ -38,7 +38,7 @@
+ 
+     @Override
+     public void c() {
+-        this.mob.setGoalTarget(this.ownerLastHurtBy);
++        this.mob.setGoalTarget(this.ownerLastHurtBy, org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_OWNER, true); // CraftBukkit - reason
+         EntityLiving entityliving = this.tameAnimal.getOwner();
+ 
+         if (entityliving != null) {

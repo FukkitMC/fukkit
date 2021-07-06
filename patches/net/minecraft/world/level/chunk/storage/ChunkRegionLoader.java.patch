@@ -1,0 +1,38 @@
+--- a/net/minecraft/world/level/chunk/storage/ChunkRegionLoader.java
++++ b/net/minecraft/world/level/chunk/storage/ChunkRegionLoader.java
+@@ -163,6 +163,12 @@
+ 
+             object = new Chunk(worldserver.getLevel(), chunkcoordintpair, biomestorage, chunkconverter, (TickList) object1, (TickList) object2, k, achunksection, (chunk) -> {
+                 loadEntities(worldserver, nbttagcompound1, chunk);
++                // CraftBukkit start - load chunk persistent data from nbt
++                net.minecraft.nbt.NBTBase persistentBase = nbttagcompound1.get("ChunkBukkitValues");
++                if (persistentBase instanceof NBTTagCompound) {
++                    chunk.persistentDataContainer.putAll((NBTTagCompound) persistentBase);
++                }
++                // CraftBukkit end
+             });
+         } else {
+             ProtoChunk protochunk = new ProtoChunk(chunkcoordintpair, chunkconverter, achunksection, protochunkticklist, protochunkticklist1, worldserver);
+@@ -294,8 +300,9 @@
+         boolean flag = ichunkaccess.s();
+ 
+         for (int i = lightenginethreaded.c(); i < lightenginethreaded.d(); ++i) {
++            int finalI = i; // CraftBukkit - decompile errors
+             ChunkSection chunksection = (ChunkSection) Arrays.stream(achunksection).filter((chunksection1) -> {
+-                return chunksection1 != null && SectionPosition.a(chunksection1.getYPosition()) == i;
++                return chunksection1 != null && SectionPosition.a(chunksection1.getYPosition()) == finalI; // CraftBukkit - decompile errors
+             }).findFirst().orElse(Chunk.EMPTY_SECTION);
+             NibbleArray nibblearray = lightenginethreaded.a(EnumSkyBlock.BLOCK).a(SectionPosition.a(chunkcoordintpair, i));
+             NibbleArray nibblearray1 = lightenginethreaded.a(EnumSkyBlock.SKY).a(SectionPosition.a(chunkcoordintpair, i));
+@@ -403,6 +410,11 @@
+ 
+         nbttagcompound1.set("Heightmaps", nbttagcompound3);
+         nbttagcompound1.set("Structures", a(worldserver, chunkcoordintpair, ichunkaccess.g(), ichunkaccess.w()));
++        // CraftBukkit start - store chunk persistent data in nbt
++        if (ichunkaccess instanceof Chunk && !((Chunk) ichunkaccess).persistentDataContainer.isEmpty()) {
++            nbttagcompound1.set("ChunkBukkitValues", ((Chunk) ichunkaccess).persistentDataContainer.toTagCompound());
++        }
++        // CraftBukkit end
+         return nbttagcompound;
+     }
+ 

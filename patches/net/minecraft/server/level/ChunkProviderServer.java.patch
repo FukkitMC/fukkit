@@ -1,0 +1,155 @@
+--- a/net/minecraft/server/level/ChunkProviderServer.java
++++ b/net/minecraft/server/level/ChunkProviderServer.java
+@@ -83,6 +83,24 @@
+         this.clearCache();
+     }
+ 
++    // CraftBukkit start - properly implement isChunkLoaded
++    public boolean isChunkLoaded(int chunkX, int chunkZ) {
++        PlayerChunk chunk = this.chunkMap.getUpdatingChunk(ChunkCoordIntPair.pair(chunkX, chunkZ));
++        if (chunk == null) {
++            return false;
++        }
++        return chunk.getFullChunk() != null;
++    }
++
++    public Chunk getChunkUnchecked(int chunkX, int chunkZ) {
++        PlayerChunk chunk = this.chunkMap.getUpdatingChunk(ChunkCoordIntPair.pair(chunkX, chunkZ));
++        if (chunk == null) {
++            return null;
++        }
++        return chunk.getFullChunkUnchecked();
++    }
++    // CraftBukkit end
++
+     @Override
+     public LightEngineThreaded getLightEngine() {
+         return this.lightEngine;
+@@ -127,7 +145,7 @@
+             for (int l = 0; l < 4; ++l) {
+                 if (k == this.lastChunkPos[l] && chunkstatus == this.lastChunkStatus[l]) {
+                     ichunkaccess = this.lastChunk[l];
+-                    if (ichunkaccess != null || !flag) {
++                    if (ichunkaccess != null) { // CraftBukkit - the chunk can become accessible in the meantime TODO for non-null chunks it might also make sense to check that the chunk's state hasn't changed in the meantime
+                         return ichunkaccess;
+                     }
+                 }
+@@ -175,12 +193,12 @@
+             if (playerchunk == null) {
+                 return null;
+             } else {
+-                Either<IChunkAccess, PlayerChunk.Failure> either = (Either) playerchunk.b(ChunkStatus.FULL).getNow((Object) null);
++                Either<IChunkAccess, PlayerChunk.Failure> either = (Either) playerchunk.b(ChunkStatus.FULL).getNow(null); // CraftBukkit - decompile error
+ 
+                 if (either == null) {
+                     return null;
+                 } else {
+-                    IChunkAccess ichunkaccess1 = (IChunkAccess) either.left().orElse((Object) null);
++                    IChunkAccess ichunkaccess1 = (IChunkAccess) either.left().orElse(null); // CraftBukkit - decompile error
+ 
+                     if (ichunkaccess1 != null) {
+                         this.a(k, ichunkaccess1, ChunkStatus.FULL);
+@@ -228,7 +246,15 @@
+         int l = 33 + ChunkStatus.a(chunkstatus);
+         PlayerChunk playerchunk = this.getChunk(k);
+ 
+-        if (flag) {
++        // CraftBukkit start - don't add new ticket for currently unloading chunk
++        boolean currentlyUnloading = false;
++        if (playerchunk != null) {
++            PlayerChunk.State oldChunkState = PlayerChunk.getChunkState(playerchunk.oldTicketLevel);
++            PlayerChunk.State currentChunkState = PlayerChunk.getChunkState(playerchunk.getTicketLevel());
++            currentlyUnloading = (oldChunkState.isAtLeast(PlayerChunk.State.BORDER) && !currentChunkState.isAtLeast(PlayerChunk.State.BORDER));
++        }
++        if (flag && !currentlyUnloading) {
++            // CraftBukkit end
+             this.distanceManager.a(TicketType.UNKNOWN, chunkcoordintpair, l, chunkcoordintpair);
+             if (this.a(playerchunk, l)) {
+                 GameProfilerFiller gameprofilerfiller = this.level.getMethodProfiler();
+@@ -247,7 +273,7 @@
+     }
+ 
+     private boolean a(@Nullable PlayerChunk playerchunk, int i) {
+-        return playerchunk == null || playerchunk.getTicketLevel() > i;
++        return playerchunk == null || playerchunk.oldTicketLevel > i; // CraftBukkit using oldTicketLevel for isLoaded checks
+     }
+ 
+     @Override
+@@ -307,7 +333,7 @@
+     }
+ 
+     public boolean a(long i) {
+-        return this.a(i, PlayerChunk::a);
++        return this.a(i, (Function<PlayerChunk, CompletableFuture<Either<Chunk, PlayerChunk.Failure>>>) PlayerChunk::a); // CraftBukkit - decompile error
+     }
+ 
+     private boolean a(long i, Function<PlayerChunk, CompletableFuture<Either<Chunk, PlayerChunk.Failure>>> function) {
+@@ -329,11 +355,31 @@
+ 
+     @Override
+     public void close() throws IOException {
+-        this.save(true);
++        // CraftBukkit start
++        close(true);
++    }
++
++    public void close(boolean save) throws IOException {
++        if (save) {
++            this.save(true);
++        }
++        // CraftBukkit end
+         this.lightEngine.close();
+         this.chunkMap.close();
+     }
+ 
++    // CraftBukkit start - modelled on below
++    public void purgeUnload() {
++        this.level.getMethodProfiler().enter("purge");
++        this.distanceManager.purgeTickets();
++        this.tickDistanceManager();
++        this.level.getMethodProfiler().exitEnter("unload");
++        this.chunkMap.unloadChunks(() -> true);
++        this.level.getMethodProfiler().exit();
++        this.clearCache();
++    }
++    // CraftBukkit end
++
+     @Override
+     public void tick(BooleanSupplier booleansupplier) {
+         this.level.getMethodProfiler().enter("purge");
+@@ -354,12 +400,12 @@
+         this.lastInhabitedUpdate = i;
+         WorldData worlddata = this.level.getWorldData();
+         boolean flag = this.level.isDebugWorld();
+-        boolean flag1 = this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING);
++        boolean flag1 = this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING) && !level.getPlayers().isEmpty(); // CraftBukkit
+ 
+         if (!flag) {
+             this.level.getMethodProfiler().enter("pollingChunks");
+             int k = this.level.getGameRules().getInt(GameRules.RULE_RANDOMTICKING);
+-            boolean flag2 = worlddata.getTime() % 400L == 0L;
++            boolean flag2 = level.ticksPerAnimalSpawns != 0L && worlddata.getTime() % level.ticksPerAnimalSpawns == 0L; // CraftBukkit
+ 
+             this.level.getMethodProfiler().enter("naturalSpawnCount");
+             int l = this.distanceManager.b();
+@@ -548,13 +594,19 @@
+         }
+ 
+         @Override
+-        protected boolean executeNext() {
++        // CraftBukkit start - process pending Chunk loadCallback() and unloadCallback() after each run task
++        public boolean executeNext() {
++        try {
+             if (ChunkProviderServer.this.tickDistanceManager()) {
+                 return true;
+             } else {
+                 ChunkProviderServer.this.lightEngine.queueUpdate();
+                 return super.executeNext();
+             }
++        } finally {
++            chunkMap.callbackExecutor.run();
++        }
++        // CraftBukkit end
+         }
+     }
+ }

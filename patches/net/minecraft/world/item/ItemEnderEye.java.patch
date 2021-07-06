@@ -1,0 +1,15 @@
+--- a/net/minecraft/world/item/ItemEnderEye.java
++++ b/net/minecraft/world/item/ItemEnderEye.java
+@@ -85,7 +85,11 @@
+ 
+                     entityendersignal.setItem(itemstack);
+                     entityendersignal.a(blockposition);
+-                    world.addEntity(entityendersignal);
++                    // CraftBukkit start
++                    if (!world.addEntity(entityendersignal)) {
++                        return new InteractionResultWrapper(EnumInteractionResult.FAIL, itemstack);
++                    }
++                    // CraftBukkit end
+                     if (entityhuman instanceof EntityPlayer) {
+                         CriterionTriggers.USED_ENDER_EYE.a((EntityPlayer) entityhuman, blockposition);
+                     }
