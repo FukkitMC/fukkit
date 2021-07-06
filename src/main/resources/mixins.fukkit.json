@@ -3,7 +3,7 @@
   "minVersion": "0.8",
   "package": "xyz.fukkit.mixins",
   "plugin": "xyz.fukkit.launch.FukkitMixinPlugin",
-  "compatibilityLevel": "JAVA_8",
+  "compatibilityLevel": "JAVA_16",
   "mixins": [
     "server.MainMixin"
   ],
