@@ -5,6 +5,7 @@
   "plugin": "xyz.fukkit.launch.FukkitMixinPlugin",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
+    "server.MainMixin"
   ],
   "injectors": {
     "defaultRequire": 1

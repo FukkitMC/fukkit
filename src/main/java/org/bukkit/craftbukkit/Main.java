@@ -2,6 +2,7 @@ package org.bukkit.craftbukkit;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -195,7 +196,16 @@ public class Main {
                 }
 
                 System.out.println("Loading libraries, please wait...");
-                net.minecraft.server.Main.main(options);
+
+                Class<?>[] target = {OptionSet.class};
+
+                for (Method method : net.minecraft.server.Main.class.getDeclaredMethods()) {
+                    if (Arrays.equals(method.getParameterTypes(), target)) {
+                        method.setAccessible(true);
+                        method.invoke(null, options);
+                        return;
+                    }
+                }
             } catch (Throwable t) {
                 t.printStackTrace();
             }

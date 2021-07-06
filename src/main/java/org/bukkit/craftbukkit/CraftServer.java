@@ -1010,7 +1010,7 @@ public final class CraftServer implements Server {
             net.minecraft.server.Main.convertWorld(worldSession, DataConverterRegistry.a(), console.options.has("eraseCache"), () -> {
                 return true;
             }, worlddata.getGeneratorSettings().d().d().stream().map((entry) -> {
-                return ResourceKey.a(IRegistry.DIMENSION_TYPE_REGISTRY, ((ResourceKey) entry.getKey()).a());
+                return ResourceKey.a(IRegistry.DIMENSION_REGISTRY, ((ResourceKey) entry.getKey()).a());
             }).collect(ImmutableSet.toImmutableSet()));
         }
 

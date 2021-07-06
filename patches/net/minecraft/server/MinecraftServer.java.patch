@@ -249,7 +249,7 @@
 +                net.minecraft.server.Main.convertWorld(worldSession, DataConverterRegistry.a(), options.has("eraseCache"), () -> {
 +                    return true;
 +                }, worlddata.getGeneratorSettings().d().d().stream().map((entry1) -> {
-+                    return ResourceKey.a(IRegistry.DIMENSION_TYPE_REGISTRY, ((ResourceKey) entry1.getKey()).a());
++                    return ResourceKey.a(IRegistry.DIMENSION_REGISTRY, ((ResourceKey) entry1.getKey()).a());
 +                }).collect(ImmutableSet.toImmutableSet()));
 +            }
 +
