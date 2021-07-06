@@ -20,9 +20,9 @@ repositories {
 }
 
 val priority = configurations.create("priority")
+
 val mainSourceSet = sourceSets.main.get()
 mainSourceSet.compileClasspath = priority + mainSourceSet.compileClasspath
-
 val patched = sourceSets.create("patched") {
     java.srcDir(mainSourceSet.java.srcDirs)
 }
