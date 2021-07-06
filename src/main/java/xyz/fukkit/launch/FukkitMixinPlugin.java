@@ -57,7 +57,7 @@ public class FukkitMixinPlugin implements IMixinConfigPlugin {
 	}
 
 	public static void bootstrap(String cls, MethodHandles.Lookup loader) throws IOException, IllegalAccessException {
-        Path path = Paths.get("").toAbsolutePath().getParent().resolve("build/classes/java/patched/" + cls + ".class");
+        Path path = Paths.get("").toAbsolutePath().getParent().resolve("build/classes/java/main/" + cls + ".class");
         byte[] code = Files.readAllBytes(path);
         Class<?> type = loader.defineClass(code);
         System.out.println();

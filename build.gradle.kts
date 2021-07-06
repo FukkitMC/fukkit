@@ -21,7 +21,7 @@ repositories {
 
 sourceSets {
     main {
-        java.srcDir("minecraft")
+        java.srcDir("src/main/minecraft")
     }
 }
 
