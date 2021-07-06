@@ -127,6 +127,7 @@ import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.messaging.StandardMessenger;
 import org.bukkit.scoreboard.Scoreboard;
+import org.jetbrains.annotations.NotNull;
 
 @DelegateDeserialization(CraftOfflinePlayer.class)
 public class CraftPlayer extends CraftHumanEntity implements Player {
@@ -1716,5 +1717,11 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
         getInventory().setItemInMainHand(book);
         getHandle().openBook(org.bukkit.craftbukkit.inventory.CraftItemStack.asNMSCopy(book), net.minecraft.world.EnumHand.MAIN_HAND);
         getInventory().setItemInMainHand(hand);
+    }
+
+    @NotNull
+    @Override
+    public Player.Spigot spigot() {
+        return null;
     }
 }

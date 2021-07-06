@@ -4,6 +4,7 @@ import net.minecraft.world.entity.EntityLightning;
 import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LightningStrike;
+import org.jetbrains.annotations.NotNull;
 
 public class CraftLightningStrike extends CraftEntity implements LightningStrike {
     public CraftLightningStrike(final CraftServer server, final EntityLightning entity) {
@@ -28,5 +29,11 @@ public class CraftLightningStrike extends CraftEntity implements LightningStrike
     @Override
     public EntityType getType() {
         return EntityType.LIGHTNING;
+    }
+
+    @NotNull
+    @Override
+    public LightningStrike.Spigot spigot() {
+        return null;
     }
 }

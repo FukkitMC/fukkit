@@ -21,6 +21,7 @@ import org.bukkit.craftbukkit.util.CraftChatMessage;
 import org.bukkit.craftbukkit.util.CraftMagicNumbers;
 import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.inventory.meta.BookMeta.Generation;
+import org.jetbrains.annotations.NotNull;
 
 @DelegateDeserialization(SerializableMeta.class)
 public class CraftMetaBook extends CraftMetaItem implements BookMeta {
@@ -358,6 +359,12 @@ public class CraftMetaBook extends CraftMetaItem implements BookMeta {
             meta.pages = new ArrayList<String>(this.pages);
         }
         return meta;
+    }
+
+    @NotNull
+    @Override
+    public Spigot spigot() {
+        return null;
     }
 
     @Override

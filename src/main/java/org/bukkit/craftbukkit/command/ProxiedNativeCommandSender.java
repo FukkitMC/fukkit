@@ -10,6 +10,7 @@ import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionAttachment;
 import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 
 public class ProxiedNativeCommandSender implements ProxiedCommandSender {
 
@@ -65,6 +66,12 @@ public class ProxiedNativeCommandSender implements ProxiedCommandSender {
     @Override
     public String getName() {
         return getCallee().getName();
+    }
+
+    @NotNull
+    @Override
+    public Spigot spigot() {
+        return null;
     }
 
     @Override

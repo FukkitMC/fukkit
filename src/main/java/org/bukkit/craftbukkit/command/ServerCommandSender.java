@@ -10,6 +10,7 @@ import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionAttachment;
 import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 
 public abstract class ServerCommandSender implements CommandSender {
     private final PermissibleBase perm = new PermissibleBase(this);
@@ -79,6 +80,12 @@ public abstract class ServerCommandSender implements CommandSender {
     @Override
     public Server getServer() {
         return Bukkit.getServer();
+    }
+
+    @NotNull
+    @Override
+    public Spigot spigot() {
+        return null;
     }
 
     @Override

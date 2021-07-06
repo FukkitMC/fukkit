@@ -177,6 +177,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.util.NumberConversions;
 import org.bukkit.util.Vector;
+import org.jetbrains.annotations.NotNull;
 
 public abstract class CraftEntity implements org.bukkit.entity.Entity {
     private static PermissibleBase perm;
@@ -1051,5 +1052,11 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
             });
         }
         return perm;
+    }
+
+    @NotNull
+    @Override
+    public Spigot spigot() {
+        return null;
     }
 }

@@ -273,6 +273,7 @@ import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Consumer;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
+import org.jetbrains.annotations.NotNull;
 
 public class CraftWorld implements World {
     public static final int CUSTOM_DIMENSION_OFFSET = 10;
@@ -2339,6 +2340,17 @@ public class CraftWorld implements World {
         BlockPosition originPos = new BlockPosition(origin.getX(), origin.getY(), origin.getZ());
         BlockPosition nearest = getHandle().getChunkProvider().getChunkGenerator().findNearestMapFeature(getHandle(), StructureGenerator.STRUCTURES_REGISTRY.get(structureType.getName()), originPos, radius, findUnexplored);
         return (nearest == null) ? null : new Location(this, nearest.getX(), nearest.getY(), nearest.getZ());
+    }
+
+    @Override
+    public int getViewDistance() {
+        return 0;
+    }
+
+    @NotNull
+    @Override
+    public Spigot spigot() {
+        return null;
     }
 
     @Override
