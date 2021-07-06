@@ -48,7 +48,7 @@ patches {
     rootDir = file(".gradle/sources-1.17").apply {
         mkdirs()
     }
-    target = file("src/main/java/net/minecraft").apply {
+    target = file("src/main/java").apply {
         mkdirs()
     }
     patches = file("patches").apply {
