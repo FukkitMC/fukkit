@@ -2,7 +2,7 @@ plugins {
     id("crusty-loom") version "0.10.2"
     id("xyz.fukkit.crusty") version "2.3.11"
     id("uk.jamierocks2.propatcher") version "2.0.0"
-}
+} 
 
 group = "xyz.fukkit"
 version = "1.0.0-SNAPSHOT"
