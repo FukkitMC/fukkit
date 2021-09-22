@@ -4,7 +4,7 @@ plugins {
     id("uk.jamierocks2.propatcher") version "2.0.0"
 } 
 
-group = "xyz.fukkit"
+group = "xyz.fukkit" // cope crane + tny_pota
 version = "1.0.0-SNAPSHOT"
 
 val buildData = crusty.latestBuildData
